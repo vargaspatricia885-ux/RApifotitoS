@@ -1,0 +1,9 @@
+{
+  "name": "RApiFotitoS",
+  "short_name": "RApiFotitoS",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "description": "Hace tus fotos geniales"
+}

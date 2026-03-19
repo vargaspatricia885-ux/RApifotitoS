@@ -1,0 +1,119 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-primary: var(--theme-primary);
+  --color-primary-hover: var(--theme-primary-hover);
+  --color-bg: var(--theme-bg);
+  --color-panel: var(--theme-panel);
+  --color-text: var(--theme-text);
+  --color-border: var(--theme-border);
+  --color-btn-bg: var(--theme-btn-bg);
+  --color-btn-text: var(--theme-btn-text);
+  --color-btn-border: var(--theme-btn-border);
+  --color-accent: var(--theme-accent);
+}
+
+:root {
+  --theme-primary: #0f172a;
+  --theme-primary-hover: #1e293b;
+  --theme-bg: #f8fafc;
+  --theme-panel: rgba(255, 255, 255, 0.6);
+  --theme-text: #0f172a;
+  --theme-border: #cbd5e1;
+  --theme-btn-bg: #ffffff;
+  --theme-btn-text: #0f172a;
+  --theme-btn-border: #0f172a;
+  --theme-accent: #2563eb;
+}
+
+[data-theme="dark"] {
+  --theme-primary: #3b82f6;
+  --theme-primary-hover: #2563eb;
+  --theme-bg: #0f172a;
+  --theme-panel: rgba(30, 41, 59, 0.8);
+  --theme-text: #f8fafc;
+  --theme-border: #475569;
+  --theme-btn-bg: #1e293b;
+  --theme-btn-text: #f8fafc;
+  --theme-btn-border: #f8fafc;
+  --theme-accent: #60a5fa;
+}
+
+[data-theme="blue"] {
+  --theme-primary: #1e3a8a;
+  --theme-primary-hover: #1e40af;
+  --theme-bg: #eff6ff;
+  --theme-panel: rgba(255, 255, 255, 0.7);
+  --theme-text: #1e3a8a;
+  --theme-border: #bfdbfe;
+  --theme-btn-bg: #ffffff;
+  --theme-btn-text: #1e3a8a;
+  --theme-btn-border: #1e3a8a;
+  --theme-accent: #2563eb;
+}
+
+[data-theme="emerald"] {
+  --theme-primary: #064e3b;
+  --theme-primary-hover: #065f46;
+  --theme-bg: #ecfdf5;
+  --theme-panel: rgba(255, 255, 255, 0.7);
+  --theme-text: #064e3b;
+  --theme-border: #a7f3d0;
+  --theme-btn-bg: #ffffff;
+  --theme-btn-text: #064e3b;
+  --theme-btn-border: #064e3b;
+  --theme-accent: #059669;
+}
+
+[data-theme="rose"] {
+  --theme-primary: #881337;
+  --theme-primary-hover: #9f1239;
+  --theme-bg: #fff1f2;
+  --theme-panel: rgba(255, 255, 255, 0.7);
+  --theme-text: #881337;
+  --theme-border: #fecdd3;
+  --theme-btn-bg: #ffffff;
+  --theme-btn-text: #881337;
+  --theme-btn-border: #881337;
+  --theme-accent: #e11d48;
+}
+
+@layer utilities {
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+  .animation-delay-4000 {
+    animation-delay: 4s;
+  }
+}
+
+@keyframes blob {
+  0% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(30px, -50px) scale(1.1);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+}
+
+.animate-blob {
+  animation: blob 7s infinite;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(203, 213, 225, 0.8);
+  border-radius: 20px;
+}
