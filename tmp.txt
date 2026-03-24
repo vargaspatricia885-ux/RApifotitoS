@@ -1,0 +1,214 @@
+58:      className="absolute flex flex-col gap-1 bg-btn-bg/90 backdrop-blur rounded-xl shadow-lg border-2 border-btn-border p-1 z-50 max-w-[90%] transition-shadow"
+70:      <div className="flex justify-between items-center px-2 py-1 border-b-2 border-border mb-1 gap-2">
+71:         <div className={`drag-handle flex-1 flex justify-center cursor-${isLocked ? 'default' : 'grab'} py-1`} title={isLocked ? "Desbloquear para mover" : "Arrastrar para mover"}>
+72:           <Move size={16} className={`text-text/40 ${isLocked ? 'opacity-50' : 'hover:text-text/60'}`} />
+74:         <div className="flex items-center gap-1">
+75:           <button onClick={onToggleLock} className="text-text/40 hover:text-accent p-1" title={isLocked ? "Desbloquear" : "Bloquear posición"}>
+78:           <button onClick={() => setIsCollapsed(!isCollapsed)} className="text-text/40 hover:text-accent p-1" title={isCollapsed ? "Expandir" : "Contraer"}>
+84:        <div className="flex flex-wrap justify-end gap-1">
+830:    <div className="min-h-screen bg-gradient-to-b from-bg-top to-bg-bottom relative overflow-auto font-sans text-text flex" data-theme={theme === 'slate' ? undefined : theme}>
+832:      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] blob-1 rounded-full mix-blend-multiply filter blur-[100px] opacity-70 animate-blob"></div>
+833:      <div className="absolute top-[20%] right-[-10%] w-[40%] h-[40%] blob-2 rounded-full mix-blend-multiply filter blur-[100px] opacity-70 animate-blob animation-delay-2000"></div>
+834:      <div className="absolute bottom-[-20%] left-[20%] w-[40%] h-[40%] blob-3 rounded-full mix-blend-multiply filter blur-[100px] opacity-70 animate-blob animation-delay-4000"></div>
+838:        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+839:          <div className="bg-panel rounded-3xl shadow-2xl border-2 border-border p-6 max-w-md w-full flex flex-col gap-4">
+840:            <div className="flex justify-between items-center">
+841:              <h3 className="text-xl font-bold text-text">Cambiar Fondo con IA</h3>
+842:              <button onClick={() => setIsChangeBgMode(false)} className="text-text/40 hover:text-text">
+846:            <p className="text-sm text-text/60">
+853:              className="w-full bg-btn-bg/80 border-2 border-border rounded-xl px-4 py-3 text-base focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all min-h-[100px] resize-none"
+855:            <label className="flex items-center gap-2 cursor-pointer mt-1">
+860:                className="w-4 h-4 text-accent rounded border-border focus:ring-accent"
+862:              <span className="text-sm font-bold text-btn-text">Igualar color (Match Color)</span>
+864:            <div className="flex justify-end gap-3 mt-4">
+867:                className="flex items-center justify-center gap-2 text-sm sm:text-base font-bold bg-btn-bg text-btn-text hover:bg-bg px-5 py-3 rounded-xl border-2 border-btn-border shadow-sm transition-all flex-1 sm:flex-none sm:w-[170px]"
+879:                className="flex items-center justify-center gap-2 text-sm sm:text-base font-bold bg-btn-bg text-btn-text hover:bg-bg px-5 py-3 rounded-xl border-2 border-btn-border shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-1 sm:flex-none sm:w-[170px]"
+890:      <div className="fixed top-0 left-0 right-0 z-50 w-full bg-panel/80 backdrop-blur-md border-b-2 border-border shadow-sm">
+891:        <div className="flex items-center justify-center gap-2 p-2 overflow-x-auto custom-scrollbar max-w-7xl mx-auto">
+896:              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap ${theme === s.id ? 'bg-accent text-bg shadow-md' : 'text-text hover:bg-black/5 dark:hover:bg-white/10'}`}
+906:      <div className="relative z-10 flex flex-col lg:flex-row w-full min-h-screen p-4 pt-16 lg:p-6 lg:pt-20 gap-4 lg:gap-6 overflow-auto">
+909:        <div className="w-full lg:w-72 flex flex-col gap-4 lg:gap-6 shrink-0 pb-20 lg:pb-0">
+911:          <div className="relative w-full py-6 px-4 rounded-3xl bg-transparent flex flex-col items-center justify-center gap-3 border-2 border-border group overflow-visible">
+917:              className="absolute top-4 right-4 p-2 text-text/40 hover:text-accent z-20 bg-panel rounded-full shadow-sm border-2 border-border"
+925:              className="hidden" 
+937:              className={`relative flex items-center justify-center w-24 h-24 cursor-pointer ${isCameraRunning ? 'animate-run-crazy' : 'group-hover:scale-110 transition-transform duration-300'}`}
+946:                <div className="relative w-full h-full group/logo">
+947:                  <img src={appLogo} alt="Logo" className={`w-full h-full object-contain z-10 relative ${isCameraRunning ? 'animate-bounce-fast' : ''}`} />
+953:                    className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center opacity-0 group-hover/logo:opacity-100 transition-opacity z-20"
+955:                    <Upload size={24} className="text-bg" />
+959:                <div className="relative w-full h-full group/logo flex items-center justify-center">
+960:                  <Camera size={64} className={`text-accent z-10 ${isCameraRunning ? 'animate-bounce-fast' : ''}`} strokeWidth={1.5} />
+966:                    className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center opacity-0 group-hover/logo:opacity-100 transition-opacity z-20"
+968:                    <Upload size={24} className="text-bg" />
+975:                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex gap-3 z-0">
+976:                  <div className="w-2 h-6 bg-accent rounded-full animate-leg-run-1 origin-top"></div>
+977:                  <div className="w-2 h-6 bg-accent rounded-full animate-leg-run-2 origin-top"></div>
+981:            <div className="text-center">
+982:              <h1 className="text-3xl font-black tracking-tighter text-text logo-text">
+985:              <p className="text-sm font-bold text-text/70 mt-1 logo-subtitle">
+992:          <div className="bg-panel backdrop-blur-xl border-2 border-border shadow-xl rounded-3xl p-6 flex flex-col gap-4">
+993:            <h2 className="text-lg font-bold tracking-tight text-text">Cargar Imagen</h2>
+995:            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
+998:                className="flex items-center justify-center gap-2 w-full bg-primary text-primary-foreground py-3 px-5 rounded-xl hover:bg-primary-hover border-2 border-primary transition-all font-bold text-sm sm:text-base shadow-sm"
+1006:                className="flex items-center justify-center gap-2 w-full bg-btn-bg text-btn-text py-3 px-5 rounded-xl hover:bg-bg border-2 border-btn-border transition-all font-bold text-sm sm:text-base shadow-sm"
+1018:              className="hidden" 
+1026:              className="hidden" 
+1029:            <div className="relative flex items-center">
+1030:              <div className="flex-grow border-t-2 border-border"></div>
+1031:              <span className="flex-shrink-0 mx-4 text-text/50 text-sm font-medium">O</span>
+1032:              <div className="flex-grow border-t-2 border-border"></div>
+1035:            <div className="flex gap-2">
+1041:                className="flex-1 bg-btn-bg/80 border-2 border-border rounded-xl px-4 py-3 text-sm sm:text-base focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all font-medium text-text"
+1045:                className="flex items-center justify-center bg-btn-bg text-btn-text px-5 py-3 rounded-xl hover:bg-bg border-2 border-btn-border transition-all shadow-sm"
+1055:        <div className="flex-1 bg-panel backdrop-blur-xl border-2 border-border shadow-xl rounded-3xl p-4 lg:p-6 flex flex-col relative overflow-auto min-h-[400px] lg:min-h-0">
+1056:          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4 sm:gap-0">
+1057:            <h2 className="text-xl font-bold tracking-tight text-text">Lienzo Principal</h2>
+1059:              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full">
+1062:                  className="flex items-center justify-center gap-2 text-sm sm:text-base font-bold bg-primary text-primary-foreground hover:bg-primary-hover px-5 py-3 rounded-xl border-2 border-primary shadow-sm transition-all w-full"
+1070:                  className="flex items-center justify-center gap-2 text-sm sm:text-base font-bold bg-btn-bg text-btn-text hover:bg-bg px-5 py-3 rounded-xl border-2 border-btn-border shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed w-full"
+1077:                  className="flex items-center justify-center gap-2 text-sm sm:text-base font-bold bg-btn-bg text-btn-text hover:bg-bg px-5 py-3 rounded-xl border-2 border-btn-border shadow-sm transition-all w-full"
+1082:                <div className="relative w-full">
+1085:                    className="flex items-center justify-center gap-2 text-sm sm:text-base font-bold bg-btn-bg text-btn-text hover:bg-bg px-5 py-3 rounded-xl border-2 border-btn-border shadow-sm transition-all w-full h-full"
+1090:                      <div className="absolute right-0 mt-2 w-32 bg-btn-bg rounded-xl shadow-lg border-2 border-border overflow-hidden z-20">
+1091:                        <button onClick={handleDownloadJPG} className="block w-full text-left px-4 py-2 hover:bg-bg text-sm font-medium text-btn-text border-b-2 border-border">JPG</button>
+1092:                        <button onClick={handleDownloadPNG} className="block w-full text-left px-4 py-2 hover:bg-bg text-sm font-medium text-btn-text border-b-2 border-border">PNG</button>
+1093:                        <button onClick={handleDownloadWEBP} className="block w-full text-left px-4 py-2 hover:bg-bg text-sm font-medium text-btn-text border-b-2 border-border">WEBP</button>
+1094:                        <button onClick={handleDownloadPDF} className="block w-full text-left px-4 py-2 hover:bg-bg text-sm font-medium text-btn-text border-b-2 border-border">PDF</button>
+1095:                        <button onClick={handleDownloadSVG} className="block w-full text-left px-4 py-2 hover:bg-bg text-sm font-medium text-emerald-600">SVG (Vector)</button>
+1103:          <div className="flex-1 bg-panel/50 rounded-2xl border-2 border-dashed border-border flex flex-col relative overflow-hidden min-h-[50vh] lg:min-h-0">
+1106:                <div className="absolute top-4 right-4 flex gap-3 z-20">
+1107:                   <button onClick={() => setIsInteractiveMode(false)} className="px-6 py-3 bg-btn-bg text-btn-text rounded-xl shadow-sm font-bold hover:bg-bg border-2 border-btn-border text-sm sm:text-base">Cancelar</button>
+1108:                   <button onClick={applyInteractiveScale} className="px-6 py-3 bg-accent text-bg rounded-xl shadow-sm font-bold hover:bg-accent/80 border-2 border-btn-border text-sm sm:text-base">Aplicar</button>
+1151:                    <div className="absolute top-4 left-4 right-4 sm:right-auto z-20 bg-btn-bg/90 backdrop-blur p-4 rounded-2xl shadow-lg border-2 border-border flex flex-col gap-4 overflow-x-auto">
+1152:                      <div className="flex flex-wrap items-center gap-4">
+1153:                        <div className="flex flex-col">
+1154:                          <label className="text-xs font-bold text-text/60 uppercase mb-1">Ancho (px)</label>
+1155:                          <input type="number" value={finalW} onChange={handleWidthChange} className="w-24 bg-btn-bg border-2 border-border rounded-xl px-3 py-1.5 text-sm font-mono font-bold text-btn-text focus:outline-none focus:border-accent transition-colors" />
+1157:                        <div className="flex flex-col">
+1158:                          <label className="text-xs font-bold text-text/60 uppercase mb-1">Alto (px)</label>
+1159:                          <input type="number" value={finalH} onChange={handleHeightChange} className="w-24 bg-btn-bg border-2 border-border rounded-xl px-3 py-1.5 text-sm font-mono font-bold text-btn-text focus:outline-none focus:border-accent transition-colors" />
+1161:                        <div className="flex flex-col">
+1162:                          <label className="text-xs font-bold text-text/60 uppercase mb-1">Escala (%)</label>
+1163:                          <input type="number" value={Math.round(scaleFactorW * 100)} onChange={handlePercentChange} className="w-24 bg-btn-bg border-2 border-border rounded-xl px-3 py-1.5 text-sm font-mono font-bold text-btn-text focus:outline-none focus:border-accent transition-colors" />
+1166:                      <label className="flex items-center gap-2 cursor-pointer mt-1">
+1171:                          className="w-4 h-4 text-accent rounded border-border focus:ring-accent"
+1173:                        <span className="text-sm font-bold text-btn-text">Mantener proporción</span>
+1179:              <div className="w-full h-full overflow-auto custom-scrollbar p-4">
+1180:                <div className="w-max h-max min-w-full min-h-full flex flex-col relative p-8">
+1182:                    className="relative group m-auto mt-24" 
+1185:                     <img src={currentImage!} className="w-full h-full shadow-md rounded-lg pointer-events-none" style={{ objectFit: maintainAspectRatio ? 'contain' : 'fill' }} alt="Interactive scale" />
+1191:                       className="absolute -bottom-3 -right-3 w-8 h-8 bg-accent rounded-full border-4 border-btn-bg shadow-lg cursor-se-resize flex items-center justify-center hover:scale-110 transition-transform z-20"
+1193:                       <MoveDiagonal size={14} className="text-bg" />
+1197:                     <div className="absolute inset-0 border-2 border-accent/50 rounded-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"></div>
+1204:                <div className="absolute top-4 right-4 flex gap-3 z-20">
+1205:                   <button onClick={() => setIsCropMode(false)} className="flex items-center justify-center gap-2 text-sm sm:text-base font-bold bg-btn-bg text-btn-text hover:bg-bg px-5 py-3 rounded-xl border-2 border-btn-border shadow-sm transition-all flex-1 sm:flex-none sm:w-[170px]">Cancelar</button>
+1206:                   <button onClick={applyCrop} className="flex items-center justify-center gap-2 text-sm sm:text-base font-bold bg-accent text-bg hover:bg-accent/80 px-5 py-3 rounded-xl border-2 border-btn-border shadow-sm transition-all flex-1 sm:flex-none sm:w-[170px]" title="Aplicar recorte">Aplicar</button>
+1209:                <div className="absolute top-4 left-4 right-4 sm:right-auto z-20 bg-btn-bg/90 backdrop-blur p-4 rounded-2xl shadow-lg border-2 border-border flex flex-col gap-4 overflow-x-auto">
+1210:                  <label className="flex items-center gap-2 cursor-pointer">
+1221:                      className="w-4 h-4 text-accent rounded border-border focus:ring-accent"
+1223:                    <span className="text-sm font-bold text-btn-text">Mantener proporción</span>
+1227:                <div className="w-full h-full flex flex-col relative p-4 mt-24">
+1228:                  <div className="flex-1 w-full relative flex items-center justify-center bg-btn-bg/50 rounded-xl border-2 border-border overflow-hidden">
+1251:                              className="max-w-full max-h-full m-auto"
+1256:                                className="max-w-full max-h-full object-contain shadow-md rounded-lg" 
+1267:                          <div className="absolute bottom-4 right-4 flex bg-btn-bg/90 backdrop-blur rounded-xl shadow-md border-2 border-btn-border overflow-hidden z-10">
+1268:                            <button onClick={() => zoomOut()} className="p-3 hover:bg-bg text-btn-text" title="Alejar"><ZoomOut size={20} /></button>
+1269:                            <div className="flex items-center justify-center px-3 text-sm font-bold text-text/80 min-w-[4rem] select-none">
+1272:                            <button onClick={() => zoomIn()} className="p-3 hover:bg-bg text-btn-text" title="Acercar"><ZoomIn size={20} /></button>
+1273:                            <div className="w-px bg-border"></div>
+1274:                            <button onClick={() => resetTransform()} className="p-3 hover:bg-bg text-btn-text" title="Restaurar vista"><Maximize size={20} /></button>
+1284:                <div className="absolute top-4 right-4 flex gap-3 z-20">
+1285:                   <button onClick={() => setIsEraseMode(false)} className="flex items-center justify-center gap-2 text-sm sm:text-base font-bold bg-btn-bg text-btn-text hover:bg-bg px-5 py-3 rounded-xl border-2 border-btn-border shadow-sm transition-all flex-1 sm:flex-none sm:w-[170px]">Cancelar</button>
+1286:                   <button onClick={applyErase} className="flex items-center justify-center gap-2 text-sm sm:text-base font-bold bg-btn-bg text-btn-text hover:bg-bg px-5 py-3 rounded-xl border-2 border-btn-border shadow-sm transition-all flex-1 sm:flex-none sm:w-[170px]" title="Borrar área seleccionada">Borrar</button>
+1289:                <div className="absolute top-4 left-4 right-4 sm:right-auto z-20 bg-btn-bg/90 backdrop-blur p-4 rounded-2xl shadow-lg border-2 border-border flex flex-col gap-4 overflow-x-auto">
+1290:                  <div className="flex flex-col gap-2">
+1291:                    <label className="text-sm font-bold text-btn-text flex justify-between">
+1301:                      className="w-full sm:w-48 h-2 bg-border rounded-lg appearance-none cursor-pointer accent-accent"
+1306:                <div className="w-full h-full flex flex-col relative p-4 mt-24">
+1307:                  <div className="flex-1 w-full relative flex items-center justify-center bg-btn-bg/50 rounded-xl border-2 border-border overflow-hidden">
+1308:                    <div className="relative max-w-full max-h-full flex items-center justify-center">
+1313:                        className="max-w-full max-h-full pointer-events-none"
+1324:                        className="absolute top-0 left-0 w-full h-full cursor-crosshair touch-none opacity-50"
+1331:              <div className="w-full h-full flex flex-col items-center justify-center text-text/40 gap-3 p-4 min-h-[50vh]">
+1332:                <ImageIcon size={48} className="opacity-50" />
+1333:                <p className="font-medium text-center">Sube una imagen para comenzar</p>
+1336:              <div className="w-full h-full overflow-hidden flex flex-col p-2 lg:p-4">
+1337:                <div className="flex flex-col md:flex-row w-full h-full gap-4">
+1339:                  <div className="flex-1 flex flex-col items-center gap-2 min-h-[30vh] md:min-h-0 relative">
+1340:                    <span className="font-bold text-text/60 bg-btn-bg px-4 py-1.5 rounded-full shadow-sm text-sm border-2 border-border absolute top-2 z-10">Original</span>
+1341:                    <div className="flex-1 w-full relative flex items-center justify-center bg-btn-bg/50 rounded-xl border-2 border-border overflow-hidden">
+1355:                                className="max-w-full max-h-full object-contain drop-shadow-md pointer-events-none will-change-transform" 
+1359:                            <div className="absolute bottom-2 right-2 flex bg-btn-bg/90 backdrop-blur rounded-xl shadow-md border-2 border-btn-border overflow-hidden z-10">
+1360:                              <button onClick={() => zoomOut()} className="p-3 hover:bg-bg text-btn-text"><ZoomOut size={20} /></button>
+1361:                              <div className="flex items-center justify-center px-3 text-sm font-bold text-text/80 min-w-[4rem] select-none">
+1364:                              <button onClick={() => zoomIn()} className="p-3 hover:bg-bg text-btn-text"><ZoomIn size={20} /></button>
+1365:                              <div className="w-px bg-border"></div>
+1366:                              <button onClick={() => resetTransform()} className="p-3 hover:bg-bg text-btn-text"><Maximize size={20} /></button>
+1374:                <div className="flex-1 flex flex-col items-center gap-2 min-h-[30vh] md:min-h-0 relative">
+1375:                  <span className="font-bold text-accent bg-accent/10 px-4 py-1.5 rounded-full shadow-sm text-sm border-2 border-accent/20 absolute top-2 z-10">
+1379:                    <button disabled={isProcessing} onClick={() => processImage('Eliminar Fondo', 'Remove the background of this image, leaving only the main subject on a pure white background.', currentImage!)} className="p-2 hover:bg-bg rounded-lg text-btn-text hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Eliminar Fondo">
+1382:                    <button disabled={isProcessing} onClick={() => processImage('Vectorizar', 'Convert this image into a highly detailed, realistic vector art style. Maximize the number of colors, gradients, and detail level to create a faithful representation of the original image. Do NOT use line art, hard edges, or flat colors. Prioritize high photographic fidelity, preserving textures, shadows, lights, and smooth transitions between tones.', currentImage!)} className="p-2 hover:bg-bg rounded-lg text-btn-text hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Vectorizar (Alta Fidelidad)">
+1385:                    <button disabled={isProcessing} onClick={() => processImage('Aumentar Calidad', 'Upscale and enhance the quality of this photo, make it high resolution, sharp, and detailed. Reconstruct details creatively, increasing sharpness and realism without generating artificial artifacts. Preserve textures, sharp edges, and visual coherence. Apply super-resolution techniques to maintain or improve original details while upscaling.', currentImage!, undefined, { model: 'gemini-3.1-flash-image-preview', imageConfig: { imageSize: '2K' } })} className="p-2 hover:bg-bg rounded-lg text-btn-text hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Aumentar Calidad">
+1388:                    <button disabled={isProcessing} onClick={() => processImage('Optimizar Foto', 'Improve the overall quality of this image. Enhance sharpness, fix lighting, improve contrast, and reduce noise. Do NOT alter the content, composition, or original elements of the image. Keep it exactly the same but with professional photographic quality.', currentImage!)} className="p-2 hover:bg-bg rounded-lg text-btn-text hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Optimizar Foto">
+1391:                    <button disabled={isProcessing} onClick={() => processImage('Efecto de Estudio', 'Enhance this photo with professional studio lighting, cinematic color grading, and sharp details. Do NOT add, remove, or alter any objects, people, or the background composition. Keep the exact same content, just improve the lighting, contrast, and photographic quality.', currentImage!)} className="p-2 hover:bg-bg rounded-lg text-btn-text hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Efecto de Estudio">
+1394:                    <button disabled={isProcessing} onClick={() => setIsChangeBgMode(true)} className="p-2 hover:bg-bg rounded-lg text-btn-text hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Cambiar fondo con IA">
+1397:                    <button disabled={isProcessing} onClick={startEraseMode} className="p-2 hover:bg-bg rounded-lg text-btn-text hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Borrar Objetos">
+1400:                    <button disabled={isProcessing} onClick={() => processImage('Retrato', 'Smooth skin (smooth effect) without losing naturalness. Remove blemishes, imperfections, and pimples. Reduce or eliminate dark circles. Deflate puffy eyes. Maintain realistic texture avoiding artificial effect.', currentImage!)} className="p-2 hover:bg-bg rounded-lg text-btn-text hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Retrato (Suavizar piel)">
+1403:                    <button disabled={isProcessing} onClick={() => processImage('Restaurar', 'Restore this old photo into a professional portrait of DSLR-quality colour and detail, using an advanced upscaling algorithm comparable to the results from the Canon EOS R6 Mark II. Ensure the restored image looks natural, retains exact facial features, has great clarity and no noise. As if taken right now with Canon EOS R6 Mark II', currentImage!, undefined, { model: 'gemini-3.1-flash-image-preview', imageConfig: { imageSize: '2K' } })} className="p-2 hover:bg-bg rounded-lg text-amber-500 hover:text-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Restaurar">
+1406:                    <button disabled={isProcessing} onClick={() => handleCropAction(currentImage!)} className="p-2 hover:bg-bg rounded-lg text-btn-text hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Recortar">
+1409:                    <button disabled={isProcessing} onClick={() => startInteractiveMode(currentImage!)} className="p-2 hover:bg-bg rounded-lg text-btn-text hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Achicar y Agrandar">
+1412:                    <div className="w-px bg-border my-1 mx-1"></div>
+1413:                    <button onClick={() => setShowOriginal(!showOriginal)} className={`p-2 hover:bg-bg rounded-lg transition-colors ${!showOriginal ? 'text-accent' : 'text-btn-text hover:text-accent'}`} title={showOriginal ? "Ocultar imagen original" : "Mostrar imagen original"}>
+1416:                    <button disabled={isProcessing} onClick={handleRotateCurrent} className="p-2 hover:bg-bg rounded-lg text-btn-text hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Rotar 90°">
+1420:                  <div className="flex-1 w-full relative flex items-center justify-center bg-btn-bg/50 rounded-xl border-2 border-accent/20 overflow-hidden">
+1421:                    <div className="absolute top-1/2 -translate-y-1/2 right-4 flex flex-col bg-btn-bg/90 backdrop-blur rounded-xl shadow-md border-2 border-btn-border overflow-hidden z-20">
+1431:                        className="flex items-center justify-center p-3 hover:bg-bg text-green-600 disabled:opacity-50 disabled:cursor-not-allowed" title="Aplicar cambios">
+1434:                      <div className="h-px w-full bg-border"></div>
+1444:                        className="flex items-center justify-center p-3 hover:bg-bg text-red-500 disabled:opacity-50 disabled:cursor-not-allowed" title="Cancelar cambios">
+1447:                      <div className="h-px w-full bg-border"></div>
+1451:                        className="flex items-center justify-center p-3 hover:bg-bg text-btn-text disabled:opacity-50 disabled:cursor-not-allowed" title="Deshacer cambio">
+1468:                              className="max-w-full max-h-full object-contain drop-shadow-xl pointer-events-none will-change-transform" 
+1472:                          <div className="absolute bottom-2 right-2 flex bg-btn-bg/90 backdrop-blur rounded-xl shadow-md border-2 border-btn-border overflow-hidden z-10">
+1473:                            <button onClick={() => zoomOut()} className="p-3 hover:bg-bg text-btn-text"><ZoomOut size={20} /></button>
+1474:                            <div className="flex items-center justify-center px-3 text-sm font-bold text-text/80 min-w-[4rem] select-none">
+1477:                            <button onClick={() => zoomIn()} className="p-3 hover:bg-bg text-btn-text"><ZoomIn size={20} /></button>
+1478:                            <div className="w-px bg-border"></div>
+1479:                            <button onClick={() => resetTransform()} className="p-3 hover:bg-bg text-btn-text"><Maximize size={20} /></button>
+1491:              <div className="absolute inset-0 bg-panel backdrop-blur-sm flex flex-col items-center justify-center z-10">
+1492:                <Loader2 size={48} className="text-accent animate-spin mb-4" />
+1493:                <p className="text-text font-bold bg-btn-bg px-6 py-3 rounded-full shadow-lg border-2 border-border">
+1504:        <div className="w-full lg:w-72 bg-panel backdrop-blur-xl border-2 border-border shadow-xl rounded-3xl p-6 flex flex-col gap-4 shrink-0">
+1505:          <div className="flex bg-panel p-1 rounded-xl border-2 border-border">
+1508:              className={`flex-1 py-1.5 text-sm font-bold rounded-lg transition-all ${rightTab === 'history' ? 'bg-btn-bg text-text shadow-sm' : 'text-text/60 hover:text-btn-text'}`}
+1514:              className={`flex-1 py-1.5 text-sm font-bold rounded-lg transition-all ${rightTab === 'similar' ? 'bg-btn-bg text-text shadow-sm' : 'text-text/60 hover:text-btn-text'}`}
+1521:            <div className="flex-1 overflow-y-auto flex flex-col gap-3 pr-2 custom-scrollbar">
+1523:                <div className="flex-1 flex items-center justify-center text-text/40 text-sm text-center px-4 font-medium">
+1531:                      className={`p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center gap-3 ${idx === history.length - 1 && !previousImage ? 'border-accent bg-accent/10' : 'border-border bg-btn-bg hover:border-accent/50'}`}
+1534:                      <div className="w-12 h-12 rounded-lg bg-panel border-2 border-border overflow-hidden flex-shrink-0">
+1535:                        <img src={item.image} alt={item.action} className="w-full h-full object-cover" />
+1537:                      <div className="flex flex-col">
+1538:                        <span className="text-sm font-bold text-text">{item.action}</span>
+1539:                        <span className="text-xs text-text/60">Paso {idx + 1}</span>
+1542:                        <div className="ml-auto w-2 h-2 rounded-full bg-accent"></div>
+1547:                    <div className="p-3 rounded-xl border-2 border-dashed border-accent bg-accent/10 flex items-center gap-3 opacity-70">
+1548:                      <div className="w-12 h-12 rounded-lg bg-panel border-2 border-border overflow-hidden flex-shrink-0">
+1549:                        <img src={currentImage!} alt="Pending" className="w-full h-full object-cover" />
+1551:                      <div className="flex flex-col">
+1552:                        <span className="text-sm font-bold text-accent">{pendingAction || 'Modificación'}</span>
+1553:                        <span className="text-xs text-accent">Sin guardar</span>
+1555:                      <Loader2 size={14} className="ml-auto text-accent animate-spin" />
+1563:              <div className="flex gap-2">
+1567:                  className="flex-1 flex items-center justify-center gap-2 bg-btn-bg text-btn-text py-3 px-3 rounded-xl hover:bg-bg transition-all font-bold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base border-2 border-btn-border overflow-hidden"
+1570:                  <Search size={18} className="shrink-0" />
+1571:                  <span className="truncate">Internet (IA)</span>
+1575:                  className="flex-1 flex items-center justify-center gap-2 bg-btn-bg text-btn-text py-3 px-3 rounded-xl hover:bg-bg transition-all font-bold shadow-sm text-sm sm:text-base border-2 border-btn-border overflow-hidden"
+1578:                  <Upload size={18} className="shrink-0" />
+1579:                  <span className="truncate">Galería</span>
+1587:                  className="hidden" 
+1591:              <div className="flex-1 overflow-y-auto flex flex-col gap-4 pr-2 custom-scrollbar">
+1594:                    <div key={idx} className="bg-btn-bg p-2 rounded-xl shadow-sm border-2 border-border group relative cursor-pointer hover:border-accent transition-colors">
+1595:                      <img src={img} alt={`Similar ${idx}`} className="w-full h-40 object-cover rounded-lg" referrerPolicy="no-referrer" onClick={() => { setPreviousImage(currentImage); setCurrentImage(img); setPendingAction('Imagen Similar'); }} />
+1596:                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex flex-col items-center justify-center gap-2 pointer-events-none">
+1597:                        <button className="text-bg font-bold text-sm bg-black/60 px-4 py-2 rounded-full backdrop-blur-sm pointer-events-auto hover:bg-black/80 transition-colors" onClick={(e) => { e.stopPropagation(); setPreviousImage(currentImage); setCurrentImage(img); setPendingAction('Imagen Similar'); }}>Usar esta</button>
+1598:                        <button className="text-bg font-bold text-sm bg-accent/80 px-4 py-2 rounded-full backdrop-blur-sm pointer-events-auto hover:bg-accent transition-colors" onClick={(e) => { e.stopPropagation(); processImage('Transferir Pose', 'Transfer the pose, attitude, and facial expression from the original image to this image. Maintain the identity and style of this image but adopt the pose of the original.', img, originalImage!); }}>Transferir Pose</button>
+1603:                  <div className="flex-1 flex items-center justify-center text-text/40 text-sm text-center px-4 font-medium">

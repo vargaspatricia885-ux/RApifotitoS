@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react';
-import { Upload, Link as LinkIcon, Image as ImageIcon, Sparkles, Wand2, Scissors, Search, Download, Loader2, SlidersHorizontal, Check, Undo2, Trash2, ChevronDown, Maximize, MoveDiagonal, Aperture, ZoomIn, ZoomOut, Move, RotateCcw, Crop as CropIcon, Camera, Palette, Filter as FilterIcon, Rocket, Smile, Wind } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Upload, Link as LinkIcon, Image as ImageIcon, Sparkles, Wand2, Scissors, Search, Download, Loader2, SlidersHorizontal, Check, Undo2, Trash2, ChevronDown, ChevronUp, Maximize, MoveDiagonal, Aperture, ZoomIn, ZoomOut, Move, RotateCcw, Crop as CropIcon, Camera, Palette, Filter as FilterIcon, Rocket, Smile, Wind, QrCode, Smartphone, X, Zap, Gem, Sun, GripHorizontal, Lock, Unlock, ImagePlus, Save, Eraser, UserCircle } from 'lucide-react';
+import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { GoogleGenAI } from '@google/genai';
 import ReactCrop, { type Crop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
@@ -9,25 +10,83 @@ import { jsPDF } from 'jspdf';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-function ToolButton({ icon, label, onClick, disabled }: { icon: React.ReactNode, label: string, onClick: () => void, disabled: boolean }) {
-  return (
-    <button 
-      onClick={onClick}
-      disabled={disabled}
-      className="flex items-center gap-2 w-full bg-btn-bg text-text py-2 px-3 rounded-lg hover:bg-bg hover:shadow-md border-2 border-btn-border transition-all font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed group text-sm"
-    >
-      <div className="text-btn-text group-hover:text-accent transition-colors flex-shrink-0">
-        {icon}
-      </div>
-      <span className="whitespace-nowrap">{label}</span>
-    </button>
-  );
-}
-
 interface HistoryItem {
   id: string;
   image: string;
   action: string;
+}
+
+function DraggableToolbar({ children, isLocked, onToggleLock }: { children: React.ReactNode, isLocked: boolean, onToggleLock: () => void }) {
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const dragRef = useRef({ startX: 0, startY: 0, initialX: 0, initialY: 0 });
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (isLocked) return;
+    if ((e.target as HTMLElement).closest('.drag-handle')) {
+      setIsDragging(true);
+      dragRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        initialX: position.x,
+        initialY: position.y
+      };
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    }
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDragging || isLocked) return;
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+    setPosition({
+      x: dragRef.current.initialX + dx,
+      y: dragRef.current.initialY + dy
+    });
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (isDragging) {
+      setIsDragging(false);
+      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    }
+  };
+
+  return (
+    <div 
+      className="absolute flex flex-col gap-1 bg-btn-bg/90 backdrop-blur rounded-xl shadow-lg border-2 border-btn-border p-1 z-50 max-w-[90%] transition-shadow"
+      style={{ 
+        top: '8px', right: '8px', 
+        transform: `translate(${position.x}px, ${position.y}px)`,
+        cursor: isDragging ? 'grabbing' : 'auto',
+        boxShadow: isDragging ? '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)' : ''
+      }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+    >
+      <div className="flex justify-between items-center px-2 py-1 border-b-2 border-border mb-1 gap-2">
+         <div className={`drag-handle flex-1 flex justify-center cursor-${isLocked ? 'default' : 'grab'} py-1`} title={isLocked ? "Desbloquear para mover" : "Arrastrar para mover"}>
+           <Move size={16} className={`text-text/40 ${isLocked ? 'opacity-50' : 'hover:text-text/60'}`} />
+         </div>
+         <div className="flex items-center gap-1">
+           <button onClick={onToggleLock} className="text-text/40 hover:text-accent p-1" title={isLocked ? "Desbloquear" : "Bloquear posición"}>
+             {isLocked ? <Lock size={14} /> : <Unlock size={14} />}
+           </button>
+           <button onClick={() => setIsCollapsed(!isCollapsed)} className="text-text/40 hover:text-accent p-1" title={isCollapsed ? "Expandir" : "Contraer"}>
+             {isCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+           </button>
+         </div>
+      </div>
+      {!isCollapsed && (
+        <div className="flex flex-wrap justify-end gap-1">
+          {children}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function App() {
@@ -38,40 +97,56 @@ export default function App() {
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [rightTab, setRightTab] = useState<'history' | 'similar'>('history');
   
-  const THEMES = ['slate', 'dark', 'blue', 'emerald', 'rose'];
-  const [theme, setTheme] = useState('slate');
-  const toggleTheme = () => {
-    const nextIdx = (THEMES.indexOf(theme) + 1) % THEMES.length;
-    setTheme(THEMES[nextIdx]);
-  };
+  const VISUAL_STYLES = [
+    { id: 'black', name: 'Black', icon: <Gem size={16} /> },
+    { id: 'vibrante', name: 'Vibrante', icon: <Zap size={16} /> },
+    { id: 'suave', name: 'Suave', icon: <Palette size={16} /> },
+    { id: 'minimalista', name: 'Minimalista', icon: <Gem size={16} /> }
+  ];
+  const [theme, setTheme] = useState('black');
+  
+  const [appLogo, setAppLogo] = useState<string | null>(null);
+  const [isAppLogoLocked, setIsAppLogoLocked] = useState(false);
+  const appLogoInputRef = useRef<HTMLInputElement>(null);
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingAction, setProcessingAction] = useState<string | null>(null);
   const [similarImages, setSimilarImages] = useState<string[]>([]);
   const [urlInput, setUrlInput] = useState('');
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+  const [showSaveMenu, setShowSaveMenu] = useState(false);
   
   const [isInteractiveMode, setIsInteractiveMode] = useState(false);
   const [maintainAspectRatio, setMaintainAspectRatio] = useState(true);
   const [isCropMode, setIsCropMode] = useState(false);
-  const [isFilterMode, setIsFilterMode] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState('none');
+  const [isEraseMode, setIsEraseMode] = useState(false);
+  const [brushSize, setBrushSize] = useState(20);
+  const eraseCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [isCameraRunning, setIsCameraRunning] = useState(false);
+  const [isCanvasVisible, setIsCanvasVisible] = useState(false);
   const [crop, setCrop] = useState<Crop>();
   const [completedCrop, setCompletedCrop] = useState<Crop | null>(null);
+  const [cropWidthPercent, setCropWidthPercent] = useState(100);
+  const [cropHeightPercent, setCropHeightPercent] = useState(100);
+  const [keepAspectRatio, setKeepAspectRatio] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
   
   const [naturalDims, setNaturalDims] = useState({ w: 0, h: 0 });
   const [visualDims, setVisualDims] = useState({ w: 0, h: 0 });
   const [initialVisualDims, setInitialVisualDims] = useState({ w: 0, h: 0 });
   
-  const [viewZoom, setViewZoom] = useState(1);
-  const [isPanning, setIsPanning] = useState(false);
-  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
-  
   const originalContainerRef = useRef<HTMLDivElement>(null);
   const modifiedContainerRef = useRef<HTMLDivElement>(null);
   
+  const [isToolbarLocked, setIsToolbarLocked] = useState(false);
+  const [showOriginal, setShowOriginal] = useState(true);
+  const [isChangeBgMode, setIsChangeBgMode] = useState(false);
+  const [bgPrompt, setBgPrompt] = useState('');
+  const [matchColor, setMatchColor] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const similarFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,6 +161,7 @@ export default function App() {
         setHistory([{ id: Date.now().toString(), image: result, action: 'Original' }]);
         setSimilarImages([]);
         setPendingAction(null);
+        setIsCanvasVisible(true);
       };
       reader.readAsDataURL(file);
     }
@@ -100,6 +176,7 @@ export default function App() {
       setSimilarImages([]);
       setUrlInput('');
       setPendingAction(null);
+      setIsCanvasVisible(true);
     }
   };
 
@@ -125,6 +202,7 @@ export default function App() {
     a.click();
     document.body.removeChild(a);
     setShowDownloadMenu(false);
+    setShowSaveMenu(false);
   };
 
   const handleDownloadJPG = () => {
@@ -140,7 +218,7 @@ export default function App() {
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        const dataUrl = canvas.toDataURL('image/jpeg', 1.0);
         const a = document.createElement('a');
         a.href = dataUrl;
         a.download = 'lumina-edit-image.jpg';
@@ -149,6 +227,32 @@ export default function App() {
         document.body.removeChild(a);
       }
       setShowDownloadMenu(false);
+      setShowSaveMenu(false);
+    };
+    img.src = currentImage;
+  };
+
+  const handleDownloadWEBP = () => {
+    if (!currentImage) return;
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0);
+        const dataUrl = canvas.toDataURL('image/webp', 0.9);
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = 'lumina-edit-image.webp';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+      setShowDownloadMenu(false);
+      setShowSaveMenu(false);
     };
     img.src = currentImage;
   };
@@ -167,6 +271,7 @@ export default function App() {
       pdf.addImage(currentImage, 'PNG', 0, 0, img.width, img.height);
       pdf.save('lumina-edit-image.pdf');
       setShowDownloadMenu(false);
+      setShowSaveMenu(false);
     };
     img.src = currentImage;
   };
@@ -177,6 +282,7 @@ export default function App() {
     setIsProcessing(true);
     setProcessingAction('Generando SVG');
     setShowDownloadMenu(false);
+    setShowSaveMenu(false);
     
     try {
       ImageTracer.imageToSVG(
@@ -206,8 +312,9 @@ export default function App() {
   };
 
 
-  const startInteractiveMode = () => {
-    if (!currentImage) return;
+  const startInteractiveMode = (sourceImage?: string) => {
+    const imgSource = sourceImage || currentImage;
+    if (!imgSource) return;
     const img = new Image();
     img.onload = () => {
        setNaturalDims({ w: img.width, h: img.height });
@@ -226,16 +333,153 @@ export default function App() {
        }
        setVisualDims({ w: vw, h: vh });
        setInitialVisualDims({ w: vw, h: vh });
+       
+       // If we are starting interactive mode from the original image,
+       // we should set the current image to the original image so that
+       // the interactive mode works on the original image.
+       if (sourceImage && sourceImage !== currentImage) {
+         setPreviousImage(currentImage);
+         setCurrentImage(sourceImage);
+       }
+       
        setIsInteractiveMode(true);
     };
-    img.src = currentImage;
+    img.src = imgSource;
+  };
+
+  const startEraseMode = () => {
+    if (!currentImage) return;
+    setIsEraseMode(true);
+  };
+
+  const applyErase = async () => {
+    if (!currentImage || !eraseCanvasRef.current || !imgRef.current) return;
+    
+    // Check if the mask is empty (user didn't draw anything)
+    const ctx = eraseCanvasRef.current.getContext('2d');
+    if (ctx) {
+      const imageData = ctx.getImageData(0, 0, eraseCanvasRef.current.width, eraseCanvasRef.current.height);
+      const hasPixels = imageData.data.some((val, index) => index % 4 === 3 && val > 0);
+      if (!hasPixels) {
+        setIsEraseMode(false);
+        return;
+      }
+    }
+
+    // Combine original image and mask
+    const combinedCanvas = document.createElement('canvas');
+    combinedCanvas.width = eraseCanvasRef.current.width;
+    combinedCanvas.height = eraseCanvasRef.current.height;
+    const combinedCtx = combinedCanvas.getContext('2d');
+    
+    if (combinedCtx) {
+      // Draw original image
+      combinedCtx.drawImage(imgRef.current, 0, 0, combinedCanvas.width, combinedCanvas.height);
+      // Draw mask over it
+      combinedCtx.drawImage(eraseCanvasRef.current, 0, 0);
+    }
+    
+    const combinedDataUrl = combinedCanvas.toDataURL('image/png');
+
+    setIsEraseMode(false);
+    
+    // Send to Gemini
+    await processImage(
+      'Borrar', 
+      'CRITICAL INSTRUCTION: Completely erase and remove any object, person, or element covered by the solid red mask. You MUST NOT leave any trace, shadow, visual residue, artifacts, or unwanted transparency. The removal must be absolute and precise. Perfectly reconstruct the background behind the masked area so it blends seamlessly with the surrounding environment, making it look as if the erased object never existed. The final output must be a clean, flawless image with no red mask and no remnants of the erased element.', 
+      combinedDataUrl
+    );
+  };
+
+  useEffect(() => {
+    if (isEraseMode && imgRef.current && eraseCanvasRef.current) {
+      const canvas = eraseCanvasRef.current;
+      const img = imgRef.current;
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+  }, [isEraseMode, currentImage]);
+
+  const handleEraseMouseDown = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    setIsDrawing(true);
+    drawErase(e);
+  };
+
+  const handleEraseMouseMove = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return;
+    drawErase(e);
+  };
+
+  const handleEraseMouseUp = () => {
+    setIsDrawing(false);
+    if (eraseCanvasRef.current) {
+      const ctx = eraseCanvasRef.current.getContext('2d');
+      if (ctx) ctx.beginPath(); // Reset path to avoid connecting lines
+    }
+  };
+
+  const drawErase = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!eraseCanvasRef.current || !imgRef.current) return;
+    const canvas = eraseCanvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const rect = canvas.getBoundingClientRect();
+    let clientX, clientY;
+
+    if ('touches' in e) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    const x = (clientX - rect.left) * scaleX;
+    const y = (clientY - rect.top) * scaleY;
+
+    ctx.lineWidth = brushSize;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(255, 0, 0, 1)';
+
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x, y);
   };
 
   const startCropMode = () => {
     if (!currentImage) return;
     setCrop(undefined);
     setCompletedCrop(null);
+    setCropWidthPercent(100);
+    setCropHeightPercent(100);
     setIsCropMode(true);
+  };
+
+  const updateCropFromPercent = (widthPct: number, heightPct: number) => {
+    setCrop({
+      unit: '%',
+      width: widthPct,
+      height: heightPct,
+      x: (100 - widthPct) / 2,
+      y: (100 - heightPct) / 2
+    });
+  };
+
+  const handleCropAction = (sourceImage: string) => {
+    if (sourceImage !== currentImage) {
+      setPreviousImage(currentImage);
+      setCurrentImage(sourceImage);
+    }
+    startCropMode();
   };
 
   const applyCrop = () => {
@@ -265,44 +509,11 @@ export default function App() {
     );
 
     const dataUrl = canvas.toDataURL('image/png');
-    setPreviousImage(currentImage);
+    setHistory(prev => [...prev, { id: Date.now().toString(), image: currentImage, action: 'Recortar' }]);
     setCurrentImage(dataUrl);
-    setPendingAction('recortar');
+    setPreviousImage(null);
+    setPendingAction(null);
     setIsCropMode(false);
-  };
-
-  const startFilterMode = () => {
-    if (!currentImage) return;
-    setSelectedFilter('none');
-    setIsFilterMode(true);
-  };
-
-  const applyFilter = () => {
-    if (!currentImage) return;
-    if (selectedFilter === 'none') {
-      setIsFilterMode(false);
-      return;
-    }
-    
-    const img = new Image();
-    img.crossOrigin = "Anonymous";
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      
-      ctx.filter = selectedFilter;
-      ctx.drawImage(img, 0, 0);
-      
-      const dataUrl = canvas.toDataURL('image/png');
-      setPreviousImage(currentImage);
-      setCurrentImage(dataUrl);
-      setPendingAction('Filtro');
-      setIsFilterMode(false);
-    };
-    img.src = currentImage;
   };
 
   const applyInteractiveScale = () => {
@@ -330,17 +541,28 @@ export default function App() {
     img.src = currentImage;
   };
 
-  const handleDragMouseDown = (e: React.MouseEvent) => {
-     e.preventDefault();
-     const startX = e.clientX;
-     const startY = e.clientY;
+  const handleDragMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
+     // Prevent default only for mouse events to avoid breaking touch scrolling if needed, 
+     // but here we want to prevent scrolling while resizing.
+     if ('preventDefault' in e && e.cancelable) {
+       e.preventDefault();
+     }
+     
+     const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+     const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+     
+     const startX = clientX;
+     const startY = clientY;
      const startW = visualDims.w;
      const startH = visualDims.h;
      const ratio = startW / startH;
      
-     const onMouseMove = (moveEvent: MouseEvent) => {
-        const deltaX = moveEvent.clientX - startX;
-        const deltaY = moveEvent.clientY - startY;
+     const onMove = (moveEvent: MouseEvent | TouchEvent) => {
+        const currentClientX = 'touches' in moveEvent ? moveEvent.touches[0].clientX : (moveEvent as MouseEvent).clientX;
+        const currentClientY = 'touches' in moveEvent ? moveEvent.touches[0].clientY : (moveEvent as MouseEvent).clientY;
+        
+        const deltaX = currentClientX - startX;
+        const deltaY = currentClientY - startY;
         let newW = startW + deltaX;
         let newH = startH + deltaY;
         
@@ -354,13 +576,17 @@ export default function App() {
         setVisualDims({ w: newW, h: newH });
      };
      
-     const onMouseUp = () => {
-        document.removeEventListener('mousemove', onMouseMove);
-        document.removeEventListener('mouseup', onMouseUp);
+     const onEnd = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onEnd);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onEnd);
      };
      
-     document.addEventListener('mousemove', onMouseMove);
-     document.addEventListener('mouseup', onMouseUp);
+     document.addEventListener('mousemove', onMove);
+     document.addEventListener('mouseup', onEnd);
+     document.addEventListener('touchmove', onMove, { passive: false });
+     document.addEventListener('touchend', onEnd);
   };
 
   const handleNewUpload = () => {
@@ -371,10 +597,10 @@ export default function App() {
     setSimilarImages([]);
     setUrlInput('');
     setPendingAction(null);
-    setViewZoom(1);
     setIsCropMode(false);
     setCrop(undefined);
     setCompletedCrop(null);
+    setIsCanvasVisible(false);
   };
 
   const handleUndo = () => {
@@ -390,40 +616,60 @@ export default function App() {
     }
   };
 
-  const handlePanStart = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isInteractiveMode || isCropMode || isFilterMode) return;
-    setIsPanning(true);
-    setPanStart({ 
-      x: e.clientX + e.currentTarget.scrollLeft, 
-      y: e.clientY + e.currentTarget.scrollTop 
+  const rotateImageBase64 = async (base64: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = base64;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.height;
+        canvas.height = img.width;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Could not get 2d context'));
+          return;
+        }
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate((90 * Math.PI) / 180);
+        ctx.drawImage(img, -img.width / 2, -img.height / 2);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = reject;
     });
   };
 
-  const handlePanMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isPanning || isInteractiveMode || isCropMode || isFilterMode) return;
-    const newScrollLeft = panStart.x - e.clientX;
-    const newScrollTop = panStart.y - e.clientY;
-    
-    e.currentTarget.scrollLeft = newScrollLeft;
-    e.currentTarget.scrollTop = newScrollTop;
-    
-    if (e.currentTarget === originalContainerRef.current && modifiedContainerRef.current) {
-       modifiedContainerRef.current.scrollLeft = newScrollLeft;
-       modifiedContainerRef.current.scrollTop = newScrollTop;
-    } else if (e.currentTarget === modifiedContainerRef.current && originalContainerRef.current) {
-       originalContainerRef.current.scrollLeft = newScrollLeft;
-       originalContainerRef.current.scrollTop = newScrollTop;
+  const handleRotateOriginal = async () => {
+    if (!originalImage) return;
+    setIsProcessing(true);
+    setProcessingAction('Rotando');
+    try {
+      const rotated = await rotateImageBase64(originalImage);
+      setOriginalImage(rotated);
+    } catch (error) {
+      console.error('Error rotating image:', error);
+    } finally {
+      setIsProcessing(false);
+      setProcessingAction(null);
     }
   };
 
-  const handlePanEnd = () => {
-    setIsPanning(false);
-  };
-
-  const handleWheel = (e: React.WheelEvent) => {
-    if (isInteractiveMode || isCropMode || isFilterMode) return;
-    const zoomDelta = e.deltaY > 0 ? -0.1 : 0.1;
-    setViewZoom(prev => Math.max(0.1, Math.min(5, prev + zoomDelta)));
+  const handleRotateCurrent = async () => {
+    if (!currentImage) return;
+    setIsProcessing(true);
+    setProcessingAction('Rotando');
+    try {
+      const rotated = await rotateImageBase64(currentImage);
+      setPreviousImage(currentImage);
+      setCurrentImage(rotated);
+      setHistory(prev => [...prev, { id: Date.now().toString(), action: 'Rotar 90°', image: rotated }]);
+      setPendingAction(null);
+    } catch (error) {
+      console.error('Error rotating image:', error);
+    } finally {
+      setIsProcessing(false);
+      setProcessingAction(null);
+    }
   };
 
   const revertToHistory = (index: number) => {
@@ -467,30 +713,46 @@ export default function App() {
     return { base64Data, mimeType };
   };
 
-  const processImage = async (action: string, prompt: string) => {
-    if (!currentImage) return;
+  const processImage = async (action: string, prompt: string, sourceImage: string = currentImage!, referenceImage?: string, options?: { model?: string, imageConfig?: any }) => {
+    if (!sourceImage) return;
     
     setIsProcessing(true);
     setProcessingAction(action);
     
     try {
-      const { base64Data, mimeType } = await getBase64Data(currentImage);
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
-        contents: {
-          parts: [
-            {
-              inlineData: {
-                data: base64Data,
-                mimeType: mimeType,
-              },
-            },
-            {
-              text: prompt,
-            },
-          ],
+      const { base64Data, mimeType } = await getBase64Data(sourceImage);
+      
+      const parts: any[] = [
+        {
+          inlineData: {
+            data: base64Data,
+            mimeType: mimeType,
+          },
         },
+        {
+          text: prompt,
+        },
+      ];
+
+      if (referenceImage) {
+        const refData = await getBase64Data(referenceImage);
+        parts.unshift({
+          inlineData: {
+            data: refData.base64Data,
+            mimeType: refData.mimeType,
+          },
+        });
+      }
+
+      // Re-initialize GoogleGenAI to ensure it uses the latest API key if selected
+      const currentAi = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+      const response = await currentAi.models.generateContent({
+        model: options?.model || 'gemini-2.5-flash-image',
+        contents: {
+          parts: parts,
+        },
+        config: options?.imageConfig ? { imageConfig: options.imageConfig } : undefined,
       });
 
       for (const part of response.candidates?.[0]?.content?.parts || []) {
@@ -565,58 +827,189 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-bg relative overflow-auto font-sans text-text flex" data-theme={theme === 'slate' ? undefined : theme}>
+    <div className="min-h-screen bg-gradient-to-b from-bg-top to-bg-bottom relative overflow-auto font-sans text-text flex" data-theme={theme === 'slate' ? undefined : theme}>
       {/* Background blobs */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-200 rounded-full mix-blend-multiply filter blur-[100px] opacity-70 animate-blob"></div>
-      <div className="absolute top-[20%] right-[-10%] w-[40%] h-[40%] bg-purple-200 rounded-full mix-blend-multiply filter blur-[100px] opacity-70 animate-blob animation-delay-2000"></div>
-      <div className="absolute bottom-[-20%] left-[20%] w-[40%] h-[40%] bg-emerald-200 rounded-full mix-blend-multiply filter blur-[100px] opacity-70 animate-blob animation-delay-4000"></div>
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] blob-1 rounded-full mix-blend-multiply filter blur-[100px] opacity-70 animate-blob"></div>
+      <div className="absolute top-[20%] right-[-10%] w-[40%] h-[40%] blob-2 rounded-full mix-blend-multiply filter blur-[100px] opacity-70 animate-blob animation-delay-2000"></div>
+      <div className="absolute bottom-[-20%] left-[20%] w-[40%] h-[40%] blob-3 rounded-full mix-blend-multiply filter blur-[100px] opacity-70 animate-blob animation-delay-4000"></div>
+
+      {/* Modals and Overlays */}
+      {isChangeBgMode && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-panel rounded-3xl shadow-2xl border-2 border-border p-6 max-w-md w-full flex flex-col gap-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xl font-bold text-text">Cambiar Fondo con IA</h3>
+              <button onClick={() => setIsChangeBgMode(false)} className="text-text/40 hover:text-text">
+                <X size={24} />
+              </button>
+            </div>
+            <p className="text-sm text-text/60">
+              Describe el nuevo fondo que deseas. La IA detectará el sujeto principal y lo integrará de forma realista.
+            </p>
+            <textarea
+              value={bgPrompt}
+              onChange={(e) => setBgPrompt(e.target.value)}
+              placeholder="Ej: Una playa al atardecer con palmeras..."
+              className="w-full bg-btn-bg/80 border-2 border-border rounded-xl px-4 py-3 text-base focus:outline-none focus:border-border focus:ring-1 focus:ring-accent transition-all min-h-[100px] resize-none"
+            />
+            <label className="flex items-center gap-2 cursor-pointer mt-1">
+              <input 
+                type="checkbox" 
+                checked={matchColor} 
+                onChange={(e) => setMatchColor(e.target.checked)}
+                className="w-4 h-4 text-accent rounded border-border focus:ring-accent"
+              />
+              <span className="text-sm font-bold text-btn-text">Igualar color (Match Color)</span>
+            </label>
+            <div className="flex justify-end gap-3 mt-4">
+              <button 
+                onClick={() => setIsChangeBgMode(false)}
+                className="flex items-center justify-center gap-2 text-sm sm:text-base font-bold bg-btn-bg text-btn-text hover:bg-bg px-5 py-3 rounded-xl border-2 border-btn-border shadow-sm transition-all flex-1 sm:flex-none sm:w-[170px]"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={() => {
+                  const matchColorPrompt = matchColor ? " CRITICAL: Automatically adjust the tones, lighting, and color balance between the new background and the foreground subject to achieve a coherent and natural visual integration without manual intervention." : "";
+                  processImage('Cambiar Fondo', `Replace the background of this image with: ${bgPrompt}. Detect and respect the edges of the main subject perfectly. Adjust the lighting, color, and shadows of the main subject to integrate realistically with the new background.${matchColorPrompt} Ensure high photographic quality.`, currentImage!);
+                  setIsChangeBgMode(false);
+                  setBgPrompt('');
+                }}
+                disabled={!bgPrompt.trim() || isProcessing}
+                className="flex items-center justify-center gap-2 text-sm sm:text-base font-bold bg-btn-bg text-btn-text hover:bg-bg px-5 py-3 rounded-xl border-2 border-btn-border shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-1 sm:flex-none sm:w-[170px]"
+              >
+                <Sparkles size={20} />
+                Generar Fondo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Style Switcher - Horizontal Top Bar */}
+      <div className="fixed top-0 left-0 right-0 z-50 w-full bg-panel/80 backdrop-blur-md border-b-2 border-border shadow-sm">
+        <div className="flex items-center justify-center gap-2 p-2 overflow-x-auto custom-scrollbar max-w-7xl mx-auto">
+          {VISUAL_STYLES.map(s => (
+            <button
+              key={s.id}
+              onClick={() => setTheme(s.id)}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap ${theme === s.id ? 'bg-accent text-bg shadow-md' : 'text-text hover:bg-black/5 dark:hover:bg-white/10'}`}
+            >
+              {s.icon}
+              {s.name}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Main Content */}
-      <div className="relative z-10 flex flex-col lg:flex-row w-full min-h-screen p-4 lg:p-6 gap-4 lg:gap-6 overflow-auto">
-        
+      <div className="relative z-10 flex flex-col lg:flex-row w-full min-h-screen p-4 pt-16 lg:p-6 lg:pt-20 gap-4 lg:gap-6 overflow-auto">
+
         {/* LEFT PANEL: Upload & Tools */}
-        <div className="w-full lg:w-80 flex flex-col gap-4 lg:gap-6 shrink-0">
-          {/* Logo / Theme Button */}
-          <button 
-            onClick={toggleTheme}
-            className="w-full py-6 px-4 rounded-3xl bg-transparent hover:bg-white/20 transition-all flex flex-col items-center justify-center gap-3 border-2 border-transparent hover:border-white/30 group"
-          >
-            <div className="relative flex items-center justify-center group-hover:scale-110 transition-transform duration-300 w-24 h-24">
-              {/* Speed lines */}
-              <Wind size={36} className="text-slate-400 absolute left-[-15px] bottom-0 opacity-0 group-hover:opacity-100 transition-all duration-300 -translate-x-4 group-hover:-translate-x-6" />
-              
-              {/* Rocket */}
-              <Rocket size={64} className="text-accent transform rotate-12 group-hover:translate-x-3 group-hover:-translate-y-3 transition-transform duration-300 z-10" strokeWidth={1.5} />
-              
-              {/* Anthropomorphized Photo (Riding the rocket) */}
-              <div className="absolute top-0 left-4 transform -translate-x-2 -translate-y-2 rotate-[-15deg] group-hover:translate-x-1 group-hover:-translate-y-5 transition-transform duration-300 z-20">
-                <div className="relative bg-white rounded-lg p-1 shadow-xl border-2 border-primary flex items-center justify-center">
-                  <ImageIcon size={28} className="text-primary" />
-                  <Smile size={16} className="text-accent absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full" strokeWidth={2.5} />
+        <div className="w-full lg:w-72 flex flex-col gap-4 lg:gap-6 shrink-0 pb-20 lg:pb-0">
+          {/* Logo */}
+          <div className="relative w-full py-6 px-4 rounded-3xl bg-transparent flex flex-col items-center justify-center gap-3 border-2 border-border group overflow-visible">
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsAppLogoLocked(!isAppLogoLocked);
+              }}
+              className="absolute top-4 right-4 p-2 text-text/40 hover:text-accent z-20 bg-panel rounded-full shadow-sm border-2 border-border"
+              title={isAppLogoLocked ? "Desbloquear logo" : "Bloquear logo"}
+            >
+              {isAppLogoLocked ? <Lock size={16} /> : <Unlock size={16} />}
+            </button>
+            <input 
+              type="file" 
+              ref={appLogoInputRef} 
+              className="hidden" 
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onload = (e) => setAppLogo(e.target?.result as string);
+                  reader.readAsDataURL(file);
+                }
+              }}
+            />
+            <div 
+              className={`relative flex items-center justify-center w-24 h-24 cursor-pointer ${isCameraRunning ? 'animate-run-crazy' : 'group-hover:scale-110 transition-transform duration-300'}`}
+              onClick={() => {
+                if (isAppLogoLocked) return;
+                if (!isCameraRunning) setIsCameraRunning(true);
+                setIsCanvasVisible(prev => !prev);
+              }}
+              onAnimationEnd={() => setIsCameraRunning(false)}
+            >
+              {appLogo ? (
+                <div className="relative w-full h-full group/logo">
+                  <img src={appLogo} alt="Logo" className={`w-full h-full object-contain z-10 relative ${isCameraRunning ? 'animate-bounce-fast' : ''}`} />
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      appLogoInputRef.current?.click();
+                    }}
+                    className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center opacity-0 group-hover/logo:opacity-100 transition-opacity z-20"
+                  >
+                    <Upload size={24} className="text-bg" />
+                  </button>
                 </div>
-              </div>
+              ) : (
+                <div className="relative w-full h-full group/logo flex items-center justify-center">
+                  <Camera size={64} className={`text-accent z-10 ${isCameraRunning ? 'animate-bounce-fast' : ''}`} strokeWidth={1.5} />
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      appLogoInputRef.current?.click();
+                    }}
+                    className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center opacity-0 group-hover/logo:opacity-100 transition-opacity z-20"
+                  >
+                    <Upload size={24} className="text-bg" />
+                  </button>
+                </div>
+              )}
+              
+              {/* Legs */}
+              {isCameraRunning && !appLogo && (
+                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex gap-3 z-0">
+                  <div className="w-2 h-6 bg-accent rounded-full animate-leg-run-1 origin-top"></div>
+                  <div className="w-2 h-6 bg-accent rounded-full animate-leg-run-2 origin-top"></div>
+                </div>
+              )}
             </div>
             <div className="text-center">
-              <h1 className="text-3xl font-black tracking-tighter text-text">
+              <h1 className="text-3xl font-black tracking-tighter text-text logo-text">
                 RApiFotitoS
               </h1>
-              <p className="text-sm font-bold text-text/70 mt-1">
-                hace tus fotos geniales
+              <p className="text-sm font-bold text-text/70 mt-1 logo-subtitle">
+                {isCameraRunning ? '¡Atrápala!' : 'hace tus fotos geniales'}
               </p>
             </div>
-          </button>
+          </div>
 
           {/* Upload Section */}
-          <div className="bg-panel backdrop-blur-xl border border-white/40 shadow-xl rounded-3xl p-6 flex flex-col gap-4">
+          <div className="bg-panel backdrop-blur-xl border-2 border-border shadow-xl rounded-3xl p-6 flex flex-col gap-4">
             <h2 className="text-lg font-bold tracking-tight text-text">Cargar Imagen</h2>
             
-            <button 
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center justify-center gap-2 w-full bg-primary text-white py-3 px-4 rounded-xl hover:bg-primary-hover border-2 border-btn-border transition-all font-semibold shadow-md"
-            >
-              <Upload size={18} />
-              <span>Desde el PC</span>
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center justify-center gap-2 w-full bg-primary text-primary-foreground py-3 px-5 rounded-xl hover:bg-primary-hover border-2 border-border transition-all font-bold text-sm sm:text-base shadow-sm"
+              >
+                <Upload size={20} />
+                <span>Desde galería</span>
+              </button>
+              
+              <button 
+                onClick={() => cameraInputRef.current?.click()}
+                className="flex items-center justify-center gap-2 w-full bg-btn-bg text-btn-text py-3 px-5 rounded-xl hover:bg-bg border-2 border-btn-border transition-all font-bold text-sm sm:text-base shadow-sm"
+              >
+                <Camera size={20} />
+                <span>Usar Cámara</span>
+              </button>
+            </div>
+
             <input 
               type="file" 
               ref={fileInputRef} 
@@ -624,11 +1017,19 @@ export default function App() {
               accept="image/*" 
               className="hidden" 
             />
+            <input 
+              type="file" 
+              ref={cameraInputRef} 
+              onChange={handleFileUpload} 
+              accept="image/*" 
+              capture="environment"
+              className="hidden" 
+            />
 
             <div className="relative flex items-center">
-              <div className="flex-grow border-t border-slate-300"></div>
-              <span className="flex-shrink-0 mx-4 text-slate-400 text-sm font-medium">O</span>
-              <div className="flex-grow border-t border-slate-300"></div>
+              <div className="flex-grow border-t-2 border-border"></div>
+              <span className="flex-shrink-0 mx-4 text-text/50 text-sm font-medium">O</span>
+              <div className="flex-grow border-t-2 border-border"></div>
             </div>
 
             <div className="flex gap-2">
@@ -637,129 +1038,74 @@ export default function App() {
                 placeholder="URL de la imagen..." 
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
-                className="flex-1 bg-btn-bg/80 border-2 border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                className="flex-1 bg-btn-bg/80 border-2 border-border rounded-xl px-4 py-3 text-sm sm:text-base focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all font-medium text-text"
               />
               <button 
                 onClick={handleUrlUpload}
-                className="bg-primary text-white p-2 rounded-xl hover:bg-primary-hover border-2 border-btn-border transition-all shadow-md"
+                className="flex items-center justify-center bg-btn-bg text-btn-text px-5 py-3 rounded-xl hover:bg-bg border-2 border-btn-border transition-all shadow-sm"
               >
-                <LinkIcon size={18} />
+                <LinkIcon size={20} />
               </button>
-            </div>
-          </div>
-
-          {/* Tools Section */}
-          <div className="bg-panel backdrop-blur-xl border border-white/40 shadow-xl rounded-3xl p-4 flex-1 flex flex-col gap-3 overflow-hidden min-h-[300px] lg:min-h-0">
-            <h2 className="text-base font-bold tracking-tight text-text shrink-0">Herramientas</h2>
-            
-            <div className="flex-1 overflow-auto custom-scrollbar pr-2 pb-2">
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-2 min-w-max lg:min-w-0">
-                <ToolButton 
-                  icon={<Scissors size={16} />} 
-                  label="Eliminar Fondo" 
-                  onClick={() => processImage('Eliminar Fondo', 'Remove the background of this image, leaving only the main subject on a pure white background.')}
-                  disabled={!currentImage || isProcessing}
-                />
-                <ToolButton 
-                  icon={<Wand2 size={16} />} 
-                  label="Vectorizar" 
-                  onClick={() => processImage('Vectorizar', 'Convert this image into a clean, scalable vector art style with flat colors and crisp edges.')}
-                  disabled={!currentImage || isProcessing}
-                />
-                <ToolButton 
-                  icon={<Sparkles size={16} />} 
-                  label="Aumentar Calidad" 
-                  onClick={() => processImage('Aumentar Calidad', 'Upscale and enhance the quality of this photo, make it high resolution, sharp, and detailed.')}
-                  disabled={!currentImage || isProcessing}
-                />
-                <ToolButton 
-                  icon={<SlidersHorizontal size={16} />} 
-                  label="Optimizar Foto" 
-                  onClick={() => processImage('Optimizar Foto', 'Fix the lighting, reduce noise, color correct, and optimize this poorly taken photo to look professional and clear.')}
-                  disabled={!currentImage || isProcessing}
-                />
-                <ToolButton 
-                  icon={<Aperture size={16} />} 
-                  label="Efecto de Estudio" 
-                  onClick={() => processImage('Efecto de Estudio', 'Enhance this photo with professional studio lighting, cinematic color grading, and sharp details. Do NOT add, remove, or alter any objects, people, or the background composition. Keep the exact same content, just improve the lighting, contrast, and photographic quality.')}
-                  disabled={!currentImage || isProcessing}
-                />
-                <ToolButton 
-                  icon={<Camera size={16} />} 
-                  label="RECONSTRUIR (nivel bajo)" 
-                  onClick={() => processImage('RECONSTRUIR (nivel bajo)', 'Restore this old photo into a professional portrait of DSLR-quality colour and detail, using an advanced upscaling algorithm comparable to the results from the Canon EOS R6 Mark II. Ensure the restored image looks natural, retains exact facial features, has great clarity and no noise. As if taken right now with Canon EOS R6 Mark II')}
-                  disabled={!currentImage || isProcessing}
-                />
-                <ToolButton 
-                  icon={<MoveDiagonal size={16} />} 
-                  label="Achicar y Agrandar" 
-                  onClick={startInteractiveMode}
-                  disabled={!currentImage || isProcessing || isInteractiveMode || isCropMode || isFilterMode}
-                />
-                <ToolButton 
-                  icon={<CropIcon size={16} />} 
-                  label="Recortar" 
-                  onClick={startCropMode}
-                  disabled={!currentImage || isProcessing || isInteractiveMode || isCropMode || isFilterMode}
-                />
-                <ToolButton 
-                  icon={<FilterIcon size={16} />} 
-                  label="Filtros" 
-                  onClick={startFilterMode}
-                  disabled={!currentImage || isProcessing || isInteractiveMode || isCropMode || isFilterMode}
-                />
-              </div>
             </div>
           </div>
         </div>
 
         {/* CENTER PANEL: Canvas */}
-        <div className="flex-1 bg-panel backdrop-blur-xl border border-white/40 shadow-xl rounded-3xl p-4 lg:p-6 flex flex-col relative overflow-auto min-h-[500px] lg:min-h-0">
+        {isCanvasVisible && (
+        <div className="flex-1 bg-panel backdrop-blur-xl border-2 border-border shadow-xl rounded-3xl p-4 lg:p-6 flex flex-col relative overflow-auto min-h-[400px] lg:min-h-0">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4 sm:gap-0">
             <h2 className="text-xl font-bold tracking-tight text-text">Lienzo Principal</h2>
             {currentImage && (
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full">
                 <button 
                   onClick={handleNewUpload}
-                  className="flex items-center gap-2 text-sm font-bold bg-btn-bg text-rose-600 hover:bg-rose-50 px-3 py-2 rounded-xl border-2 border-btn-border shadow-sm transition-all"
+                  className="flex items-center justify-center gap-2 text-sm sm:text-base font-bold bg-primary text-primary-foreground hover:bg-primary-hover px-5 py-3 rounded-xl border-2 border-primary shadow-sm transition-all w-full"
                   title="Limpiar lienzo y empezar de nuevo"
                 >
-                  <Trash2 size={16} /> Nueva Carga
+                  <Trash2 size={20} /> Nueva Carga
                 </button>
                 <button 
                   onClick={handleUndo}
                   disabled={history.length <= 1 && !previousImage}
-                  className="flex items-center gap-2 text-sm font-bold bg-btn-bg text-btn-text hover:bg-bg px-3 py-2 rounded-xl border-2 border-btn-border shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center justify-center gap-2 text-sm sm:text-base font-bold bg-btn-bg text-btn-text hover:bg-bg px-5 py-3 rounded-xl border-2 border-btn-border shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed w-full"
                   title="Volver atrás de una modificación"
                 >
-                  <Undo2 size={16} /> Volver Atrás
+                  <Undo2 size={20} /> Volver Atrás
                 </button>
-                <div className="relative">
+                <button 
+                  onClick={handleDownloadPNG}
+                  className="flex items-center justify-center gap-2 text-sm sm:text-base font-bold bg-btn-bg text-btn-text hover:bg-bg px-5 py-3 rounded-xl border-2 border-btn-border shadow-sm transition-all w-full"
+                  title="Descargar imagen en formato PNG"
+                >
+                  <Download size={20} /> Descargar
+                </button>
+                <div className="relative w-full">
                   <button 
-                    onClick={() => setShowDownloadMenu(!showDownloadMenu)}
-                    className="flex items-center gap-2 text-sm font-bold bg-accent text-white hover:bg-blue-700 px-3 py-2 rounded-xl border-2 border-btn-border shadow-sm transition-all"
+                    onClick={() => setShowSaveMenu(!showSaveMenu)}
+                    className="flex items-center justify-center gap-2 text-sm sm:text-base font-bold bg-btn-bg text-btn-text hover:bg-bg px-5 py-3 rounded-xl border-2 border-btn-border shadow-sm transition-all w-full h-full"
                   >
-                    <Download size={16} /> Descargar <ChevronDown size={14} />
+                    <Save size={20} /> Guardar <ChevronDown size={18} />
                   </button>
-                  {showDownloadMenu && (
-                    <div className="absolute right-0 mt-2 w-32 bg-btn-bg rounded-xl shadow-lg border border-border overflow-hidden z-20">
-                      <button onClick={handleDownloadJPG} className="block w-full text-left px-4 py-2 hover:bg-bg text-sm font-medium text-btn-text border-b border-slate-100">JPG</button>
-                      <button onClick={handleDownloadPNG} className="block w-full text-left px-4 py-2 hover:bg-bg text-sm font-medium text-btn-text border-b border-slate-100">PNG</button>
-                      <button onClick={handleDownloadPDF} className="block w-full text-left px-4 py-2 hover:bg-bg text-sm font-medium text-btn-text border-b border-slate-100">PDF</button>
-                      <button onClick={handleDownloadSVG} className="block w-full text-left px-4 py-2 hover:bg-bg text-sm font-medium text-emerald-600">SVG (Vector)</button>
-                    </div>
-                  )}
-                </div>
+                  {showSaveMenu && (
+                      <div className="absolute right-0 mt-2 w-32 bg-btn-bg rounded-xl shadow-lg border-2 border-border overflow-hidden z-20">
+                        <button onClick={handleDownloadJPG} className="block w-full text-left px-4 py-2 hover:bg-bg text-sm font-medium text-btn-text border-b-2 border-border">JPG</button>
+                        <button onClick={handleDownloadPNG} className="block w-full text-left px-4 py-2 hover:bg-bg text-sm font-medium text-btn-text border-b-2 border-border">PNG</button>
+                        <button onClick={handleDownloadWEBP} className="block w-full text-left px-4 py-2 hover:bg-bg text-sm font-medium text-btn-text border-b-2 border-border">WEBP</button>
+                        <button onClick={handleDownloadPDF} className="block w-full text-left px-4 py-2 hover:bg-bg text-sm font-medium text-btn-text border-b-2 border-border">PDF</button>
+                        <button onClick={handleDownloadSVG} className="block w-full text-left px-4 py-2 hover:bg-bg text-sm font-medium text-text">SVG (Vector)</button>
+                      </div>
+                    )}
+                  </div>
               </div>
             )}
           </div>
           
-          <div className="flex-1 bg-slate-100/50 rounded-2xl border-2 border-dashed border-slate-300 flex flex-col relative overflow-hidden">
+          <div className="flex-1 bg-panel/50 rounded-2xl border-2 border-dashed border-border flex flex-col relative overflow-hidden min-h-[50vh] lg:min-h-0">
             {isInteractiveMode ? (
               <>
-                <div className="absolute top-4 right-4 flex gap-2 z-20">
-                   <button onClick={() => setIsInteractiveMode(false)} className="px-4 py-2 bg-btn-bg text-btn-text rounded-xl shadow-sm font-bold hover:bg-bg border-2 border-btn-border">Cancelar</button>
-                   <button onClick={applyInteractiveScale} className="px-4 py-2 bg-accent text-white rounded-xl shadow-sm font-bold hover:bg-blue-700 border-2 border-btn-border">Aplicar</button>
+                <div className="absolute top-4 right-4 flex gap-3 z-20">
+                   <button onClick={() => setIsInteractiveMode(false)} className="px-6 py-3 bg-btn-bg text-btn-text rounded-xl shadow-sm font-bold hover:bg-bg border-2 border-btn-border text-sm sm:text-base">Cancelar</button>
+                   <button onClick={applyInteractiveScale} className="px-6 py-3 bg-accent text-bg rounded-xl shadow-sm font-bold hover:bg-accent/80 border-2 border-btn-border text-sm sm:text-base">Aplicar</button>
                 </div>
                 
                 {(() => {
@@ -802,19 +1148,19 @@ export default function App() {
                   };
 
                   return (
-                    <div className="absolute top-4 left-4 z-20 bg-btn-bg/90 backdrop-blur p-4 rounded-2xl shadow-lg border border-border flex flex-col gap-4">
-                      <div className="flex items-center gap-4">
+                    <div className="absolute top-4 left-4 right-4 sm:right-auto z-20 bg-btn-bg/90 backdrop-blur p-4 rounded-2xl shadow-lg border-2 border-border flex flex-col gap-4 overflow-x-auto">
+                      <div className="flex flex-wrap items-center gap-4">
                         <div className="flex flex-col">
-                          <label className="text-xs font-bold text-slate-500 uppercase mb-1">Ancho (px)</label>
-                          <input type="number" value={finalW} onChange={handleWidthChange} className="w-24 bg-btn-bg border-2 border-border rounded-xl px-3 py-1.5 text-sm font-mono font-bold text-btn-text focus:outline-none focus:border-blue-500 transition-colors" />
+                          <label className="text-xs font-bold text-text/60 uppercase mb-1">Ancho (px)</label>
+                          <input type="number" value={finalW} onChange={handleWidthChange} className="w-24 bg-btn-bg border-2 border-border rounded-xl px-3 py-1.5 text-sm font-mono font-bold text-btn-text focus:outline-none focus:border-accent transition-colors" />
                         </div>
                         <div className="flex flex-col">
-                          <label className="text-xs font-bold text-slate-500 uppercase mb-1">Alto (px)</label>
-                          <input type="number" value={finalH} onChange={handleHeightChange} className="w-24 bg-btn-bg border-2 border-border rounded-xl px-3 py-1.5 text-sm font-mono font-bold text-btn-text focus:outline-none focus:border-blue-500 transition-colors" />
+                          <label className="text-xs font-bold text-text/60 uppercase mb-1">Alto (px)</label>
+                          <input type="number" value={finalH} onChange={handleHeightChange} className="w-24 bg-btn-bg border-2 border-border rounded-xl px-3 py-1.5 text-sm font-mono font-bold text-btn-text focus:outline-none focus:border-accent transition-colors" />
                         </div>
                         <div className="flex flex-col">
-                          <label className="text-xs font-bold text-slate-500 uppercase mb-1">Escala (%)</label>
-                          <input type="number" value={Math.round(scaleFactorW * 100)} onChange={handlePercentChange} className="w-24 bg-btn-bg border-2 border-border rounded-xl px-3 py-1.5 text-sm font-mono font-bold text-btn-text focus:outline-none focus:border-blue-500 transition-colors" />
+                          <label className="text-xs font-bold text-text/60 uppercase mb-1">Escala (%)</label>
+                          <input type="number" value={Math.round(scaleFactorW * 100)} onChange={handlePercentChange} className="w-24 bg-btn-bg border-2 border-border rounded-xl px-3 py-1.5 text-sm font-mono font-bold text-btn-text focus:outline-none focus:border-accent transition-colors" />
                         </div>
                       </div>
                       <label className="flex items-center gap-2 cursor-pointer mt-1">
@@ -822,7 +1168,7 @@ export default function App() {
                           type="checkbox" 
                           checked={maintainAspectRatio} 
                           onChange={(e) => setMaintainAspectRatio(e.target.checked)}
-                          className="w-4 h-4 text-accent rounded border-slate-300 focus:ring-blue-500"
+                          className="w-4 h-4 text-accent rounded border-border focus:ring-accent"
                         />
                         <span className="text-sm font-bold text-btn-text">Mantener proporción</span>
                       </label>
@@ -841,171 +1187,300 @@ export default function App() {
                      {/* Drag Handle */}
                      <div 
                        onMouseDown={handleDragMouseDown}
-                       className="absolute -bottom-3 -right-3 w-8 h-8 bg-accent rounded-full border-4 border-white shadow-lg cursor-se-resize flex items-center justify-center hover:scale-110 transition-transform z-20"
+                       onTouchStart={handleDragMouseDown}
+                       className="absolute -bottom-3 -right-3 w-8 h-8 bg-accent rounded-full border-4 border-btn-bg shadow-lg cursor-se-resize flex items-center justify-center hover:scale-110 transition-transform z-20"
                      >
-                       <MoveDiagonal size={14} className="text-white" />
+                       <MoveDiagonal size={14} className="text-bg" />
                      </div>
                      
                      {/* Border highlight */}
-                     <div className="absolute inset-0 border-2 border-blue-500/50 rounded-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                     <div className="absolute inset-0 border-2 border-border rounded-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"></div>
                   </div>
                 </div>
               </div>
               </>
             ) : isCropMode ? (
               <>
-                <div className="absolute top-4 right-4 flex gap-2 z-20">
-                   <button onClick={() => setIsCropMode(false)} className="px-4 py-2 bg-btn-bg text-btn-text rounded-xl shadow-sm font-bold hover:bg-bg border-2 border-btn-border">Cancelar</button>
-                   <button onClick={applyCrop} className="px-4 py-2 bg-accent text-white rounded-xl shadow-sm font-bold hover:bg-blue-700 border-2 border-btn-border">Aplicar</button>
+                <div className="absolute top-4 right-4 flex gap-3 z-20">
+                   <button onClick={() => setIsCropMode(false)} className="flex items-center justify-center gap-2 text-sm sm:text-base font-bold bg-btn-bg text-btn-text hover:bg-bg px-5 py-3 rounded-xl border-2 border-btn-border shadow-sm transition-all flex-1 sm:flex-none sm:w-[170px]">Cancelar</button>
+                   <button onClick={applyCrop} className="flex items-center justify-center gap-2 text-sm sm:text-base font-bold bg-accent text-bg hover:bg-accent/80 px-5 py-3 rounded-xl border-2 border-btn-border shadow-sm transition-all flex-1 sm:flex-none sm:w-[170px]" title="Aplicar recorte">Aplicar</button>
                 </div>
-                <div className="w-full h-full overflow-auto custom-scrollbar p-4">
-                  <div className="w-max h-max min-w-full min-h-full flex flex-col relative p-8">
-                    <div className="flex-1 w-full relative flex overflow-hidden p-8 mt-12">
-                      <ReactCrop 
-                        crop={crop} 
-                        onChange={c => setCrop(c)} 
-                        onComplete={c => setCompletedCrop(c)}
-                        className="max-w-full max-h-full m-auto"
-                      >
-                        <img 
-                          ref={imgRef}
-                          src={currentImage!} 
-                          className="max-w-full max-h-full object-contain shadow-md rounded-lg" 
-                          alt="Crop" 
-                          crossOrigin="anonymous"
-                        />
-                      </ReactCrop>
-                    </div>
+                
+                <div className="absolute top-4 left-4 right-4 sm:right-auto z-20 bg-btn-bg/90 backdrop-blur p-4 rounded-2xl shadow-lg border-2 border-border flex flex-col gap-4 overflow-x-auto">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={keepAspectRatio} 
+                      onChange={(e) => {
+                        setKeepAspectRatio(e.target.checked);
+                        if (e.target.checked) {
+                          setCropHeightPercent(cropWidthPercent);
+                          updateCropFromPercent(cropWidthPercent, cropWidthPercent);
+                        }
+                      }}
+                      className="w-4 h-4 text-accent rounded border-border focus:ring-accent"
+                    />
+                    <span className="text-sm font-bold text-btn-text">Mantener proporción</span>
+                  </label>
+                </div>
+
+                <div className="w-full h-full flex flex-col relative p-4 mt-24">
+                  <div className="flex-1 w-full relative flex items-center justify-center bg-btn-bg/50 rounded-xl border-2 border-border overflow-hidden">
+                    <TransformWrapper
+                      initialScale={0.8}
+                      minScale={0.1}
+                      maxScale={8}
+                      centerOnInit={true}
+                      wheel={{ step: 0.1 }}
+                      panning={{ excluded: ['ReactCrop', 'ReactCrop__crop-selection', 'ReactCrop__drag-handle', 'ReactCrop__drag-bar'] }}
+                    >
+                      {({ zoomIn, zoomOut, resetTransform, scale }) => (
+                        <>
+                          <TransformComponent wrapperClass="!w-full !h-full" contentClass="!w-full !h-full flex items-center justify-center">
+                            <ReactCrop 
+                              crop={crop} 
+                              onChange={(c, percentCrop) => {
+                                setCrop(c);
+                                if (percentCrop.width && percentCrop.height) {
+                                  setCropWidthPercent(Math.round(percentCrop.width));
+                                  setCropHeightPercent(Math.round(percentCrop.height));
+                                }
+                              }} 
+                              onComplete={c => setCompletedCrop(c)}
+                              aspect={keepAspectRatio ? 1 : undefined}
+                              className="max-w-full max-h-full m-auto"
+                            >
+                              <img 
+                                ref={imgRef}
+                                src={currentImage!} 
+                                className="max-w-full max-h-full object-contain shadow-md rounded-lg" 
+                                alt="Crop" 
+                                crossOrigin="anonymous"
+                                onLoad={(e) => {
+                                  // Initialize crop to 100% on load
+                                  const { width, height } = e.currentTarget;
+                                  setCrop({ unit: '%', width: 100, height: 100, x: 0, y: 0 });
+                                }}
+                              />
+                            </ReactCrop>
+                          </TransformComponent>
+                          <div className="absolute bottom-4 right-4 flex bg-btn-bg/90 backdrop-blur rounded-xl shadow-md border-2 border-btn-border overflow-hidden z-10">
+                            <button onClick={() => zoomOut()} className="p-3 hover:bg-bg text-btn-text" title="Alejar"><ZoomOut size={20} /></button>
+                            <div className="flex items-center justify-center px-3 text-sm font-bold text-text/80 min-w-[4rem] select-none">
+                              {Math.round(scale * 100)}%
+                            </div>
+                            <button onClick={() => zoomIn()} className="p-3 hover:bg-bg text-btn-text" title="Acercar"><ZoomIn size={20} /></button>
+                            <div className="w-px bg-border"></div>
+                            <button onClick={() => resetTransform()} className="p-3 hover:bg-bg text-btn-text" title="Restaurar vista"><Maximize size={20} /></button>
+                          </div>
+                        </>
+                      )}
+                    </TransformWrapper>
                   </div>
                 </div>
               </>
-            ) : isFilterMode ? (
+            ) : isEraseMode ? (
               <>
-                <div className="absolute top-4 right-4 flex gap-2 z-20">
-                   <button onClick={() => setIsFilterMode(false)} className="px-4 py-2 bg-btn-bg text-btn-text rounded-xl shadow-sm font-bold hover:bg-bg border-2 border-btn-border">Cancelar</button>
-                   <button onClick={applyFilter} className="px-4 py-2 bg-accent text-white rounded-xl shadow-sm font-bold hover:bg-blue-700 border-2 border-btn-border">Aplicar</button>
+                <div className="absolute top-4 right-4 flex gap-3 z-20">
+                   <button onClick={() => setIsEraseMode(false)} className="flex items-center justify-center gap-2 text-sm sm:text-base font-bold bg-btn-bg text-btn-text hover:bg-bg px-5 py-3 rounded-xl border-2 border-btn-border shadow-sm transition-all flex-1 sm:flex-none sm:w-[170px]">Cancelar</button>
+                   <button onClick={applyErase} className="flex items-center justify-center gap-2 text-sm sm:text-base font-bold bg-btn-bg text-btn-text hover:bg-bg px-5 py-3 rounded-xl border-2 border-btn-border shadow-sm transition-all flex-1 sm:flex-none sm:w-[170px]" title="Borrar área seleccionada">Borrar</button>
                 </div>
-                <div className="w-full h-full overflow-auto custom-scrollbar p-4 flex flex-col">
-                  <div className="flex-1 relative flex items-center justify-center p-4 min-h-[300px]">
-                    <img 
-                      src={currentImage!} 
-                      className="max-w-full max-h-full object-contain shadow-md rounded-lg transition-all duration-300" 
-                      style={{ filter: selectedFilter === 'none' ? 'none' : selectedFilter }}
-                      alt="Filter Preview" 
+                
+                <div className="absolute top-4 left-4 right-4 sm:right-auto z-20 bg-btn-bg/90 backdrop-blur p-4 rounded-2xl shadow-lg border-2 border-border flex flex-col gap-4 overflow-x-auto">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-bold text-btn-text flex justify-between">
+                      <span>Tamaño del pincel</span>
+                      <span>{brushSize}px</span>
+                    </label>
+                    <input 
+                      type="range" 
+                      min="1" 
+                      max="100" 
+                      value={brushSize} 
+                      onChange={(e) => setBrushSize(parseInt(e.target.value))}
+                      className="w-full sm:w-48 h-2 bg-border rounded-lg appearance-none cursor-pointer accent-accent"
                     />
                   </div>
-                  <div className="w-full bg-panel backdrop-blur-xl border border-white/40 shadow-xl rounded-2xl p-4 mt-4 overflow-x-auto custom-scrollbar">
-                    <div className="flex gap-3 min-w-max pb-2">
-                      {[
-                        { id: 'none', name: 'Normal' },
-                        { id: 'contrast(1.2) saturate(1.35)', name: 'Clarendon' },
-                        { id: 'sepia(0.3) contrast(0.9) saturate(0.8) brightness(1.05)', name: 'Gingham' },
-                        { id: 'saturate(1.4) contrast(1.1) sepia(0.2) hue-rotate(-10deg)', name: 'Juno' },
-                        { id: 'brightness(1.1) contrast(0.9) saturate(1.05)', name: 'Retrato' },
-                        { id: 'contrast(1.3) saturate(1.2) brightness(0.9)', name: 'Polarizador' },
-                        { id: 'brightness(0.6)', name: 'Filtro ND' }
-                      ].map(f => (
-                        <button
-                          key={f.name}
-                          onClick={() => setSelectedFilter(f.id)}
-                          className={`flex flex-col items-center gap-2 p-2 rounded-xl border-2 transition-all ${selectedFilter === f.id ? 'border-accent bg-blue-50/50' : 'border-transparent hover:bg-bg'}`}
-                        >
-                          <div className="w-16 h-16 rounded-lg overflow-hidden border border-border">
-                            <img src={currentImage!} style={{ filter: f.id === 'none' ? 'none' : f.id }} className="w-full h-full object-cover" alt={f.name} />
-                          </div>
-                          <span className="text-xs font-bold text-text">{f.name}</span>
-                        </button>
-                      ))}
+                </div>
+
+                <div className="w-full h-full flex flex-col relative p-4 mt-24">
+                  <div className="flex-1 w-full relative flex items-center justify-center bg-btn-bg/50 rounded-xl border-2 border-border overflow-hidden">
+                    <div className="relative max-w-full max-h-full flex items-center justify-center">
+                      <img 
+                        ref={imgRef}
+                        src={currentImage!} 
+                        alt="Erase mode" 
+                        className="max-w-full max-h-full pointer-events-none"
+                      />
+                      <canvas
+                        ref={eraseCanvasRef}
+                        onMouseDown={handleEraseMouseDown}
+                        onMouseMove={handleEraseMouseMove}
+                        onMouseUp={handleEraseMouseUp}
+                        onMouseLeave={handleEraseMouseUp}
+                        onTouchStart={handleEraseMouseDown}
+                        onTouchMove={handleEraseMouseMove}
+                        onTouchEnd={handleEraseMouseUp}
+                        className="absolute top-0 left-0 w-full h-full cursor-crosshair touch-none opacity-50"
+                      />
                     </div>
                   </div>
                 </div>
               </>
             ) : !originalImage ? (
-              <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-3 p-4">
+              <div className="w-full h-full flex flex-col items-center justify-center text-text/40 gap-3 p-4 min-h-[50vh]">
                 <ImageIcon size={48} className="opacity-50" />
-                <p className="font-medium">Sube una imagen para comenzar</p>
+                <p className="font-medium text-center">Sube una imagen para comenzar</p>
               </div>
             ) : (
-              <div className="w-full h-full overflow-auto custom-scrollbar p-4">
+              <div className="w-full h-full overflow-hidden flex flex-col p-2 lg:p-4">
                 <div className="flex flex-col md:flex-row w-full h-full gap-4">
-                <div className="flex-1 flex flex-col items-center gap-3 min-h-[300px] md:min-h-0">
-                  <span className="font-bold text-slate-500 bg-btn-bg px-4 py-1.5 rounded-full shadow-sm text-sm border border-border">Original</span>
-                  <div 
-                    ref={originalContainerRef}
-                    className={`flex-1 w-full relative flex items-start justify-start bg-btn-bg/50 rounded-xl border border-border overflow-auto custom-scrollbar p-2 ${isInteractiveMode ? '' : 'cursor-grab active:cursor-grabbing'}`}
-                    onMouseDown={handlePanStart}
-                    onMouseMove={handlePanMove}
-                    onMouseUp={handlePanEnd}
-                    onMouseLeave={handlePanEnd}
-                    onWheel={handleWheel}
-                  >
-                    <div 
-                      className="flex items-center justify-center min-w-full min-h-full"
-                      style={{ 
-                        width: `${viewZoom * 100}%`, 
-                        height: `${viewZoom * 100}%`,
-                        transition: isPanning ? 'none' : 'width 0.1s, height 0.1s ease-out'
-                      }}
-                    >
-                      <img 
-                        src={originalImage} 
-                        alt="Original" 
-                        className="max-w-full max-h-full object-contain drop-shadow-md pointer-events-none" 
-                        referrerPolicy="no-referrer" 
-                      />
-                    </div>
-                    
-                    {/* View Controls Toolbar */}
-                    <div className="absolute bottom-2 right-2 flex bg-btn-bg/90 backdrop-blur rounded-xl shadow-md border-2 border-btn-border overflow-hidden z-10 cursor-default" onMouseDown={(e) => e.stopPropagation()}>
-                      <button onClick={() => setViewZoom(z => Math.max(0.1, z - 0.2))} className="p-1.5 hover:bg-bg text-btn-text" title="Achicar vista"><ZoomOut size={16} /></button>
-                      <div className="flex items-center justify-center px-1 text-xs font-medium text-slate-600 min-w-[3rem] select-none">
-                        {Math.round(viewZoom * 100)}%
-                      </div>
-                      <button onClick={() => setViewZoom(z => Math.min(5, z + 0.2))} className="p-1.5 hover:bg-bg text-btn-text" title="Agrandar vista"><ZoomIn size={16} /></button>
-                      <div className="w-px bg-slate-200"></div>
-                      <button onClick={() => { setViewZoom(1); if(originalContainerRef.current) { originalContainerRef.current.scrollLeft = 0; originalContainerRef.current.scrollTop = 0; } }} className="p-1.5 hover:bg-bg text-btn-text" title="Centrar y restaurar vista"><Move size={16} /></button>
+                {showOriginal && (
+                  <div className="flex-1 flex flex-col items-center gap-2 min-h-[30vh] md:min-h-0 relative">
+                    <span className="font-bold text-text/60 bg-btn-bg px-4 py-1.5 rounded-full shadow-sm text-sm border-2 border-border absolute top-2 z-10">Original</span>
+                    <div className="flex-1 w-full relative flex items-center justify-center bg-btn-bg/50 rounded-xl border-2 border-border overflow-hidden">
+                      <TransformWrapper
+                        initialScale={1}
+                        minScale={0.1}
+                        maxScale={8}
+                        centerOnInit={true}
+                        wheel={{ step: 0.1 }}
+                      >
+                        {({ zoomIn, zoomOut, resetTransform, scale }) => (
+                          <>
+                            <TransformComponent wrapperClass="!w-full !h-full" contentClass="!w-full !h-full flex items-center justify-center">
+                              <img 
+                                src={originalImage} 
+                                alt="Original" 
+                                className="max-w-full max-h-full object-contain drop-shadow-md pointer-events-none will-change-transform" 
+                                referrerPolicy="no-referrer" 
+                              />
+                            </TransformComponent>
+                            <div className="absolute bottom-2 right-2 flex bg-btn-bg/90 backdrop-blur rounded-xl shadow-md border-2 border-btn-border overflow-hidden z-10">
+                              <button onClick={() => zoomOut()} className="p-3 hover:bg-bg text-btn-text"><ZoomOut size={20} /></button>
+                              <div className="flex items-center justify-center px-3 text-sm font-bold text-text/80 min-w-[4rem] select-none">
+                                {Math.round(scale * 100)}%
+                              </div>
+                              <button onClick={() => zoomIn()} className="p-3 hover:bg-bg text-btn-text"><ZoomIn size={20} /></button>
+                              <div className="w-px bg-border"></div>
+                              <button onClick={() => resetTransform()} className="p-3 hover:bg-bg text-btn-text"><Maximize size={20} /></button>
+                            </div>
+                          </>
+                        )}
+                      </TransformWrapper>
                     </div>
                   </div>
-                </div>
-                <div className="flex-1 flex flex-col items-center gap-3 min-h-[300px] md:min-h-0">
-                  <span className="font-bold text-accent bg-blue-50 px-4 py-1.5 rounded-full shadow-sm text-sm border border-blue-200">
+                )}
+                <div className="flex-1 flex flex-col items-center gap-2 min-h-[30vh] md:min-h-0 relative">
+                  <span className="font-bold text-accent bg-accent/10 px-4 py-1.5 rounded-full shadow-sm text-sm border-2 border-border absolute top-2 z-10">
                     {previousImage ? "Modificado (Vista Previa)" : "Modificado"}
                   </span>
-                  <div 
-                    ref={modifiedContainerRef}
-                    className={`flex-1 w-full relative flex items-start justify-start bg-btn-bg/50 rounded-xl border border-blue-200 overflow-auto custom-scrollbar p-2 ${isInteractiveMode ? '' : 'cursor-grab active:cursor-grabbing'}`}
-                    onMouseDown={handlePanStart}
-                    onMouseMove={handlePanMove}
-                    onMouseUp={handlePanEnd}
-                    onMouseLeave={handlePanEnd}
-                    onWheel={handleWheel}
-                  >
-                    <div 
-                      className="flex items-center justify-center min-w-full min-h-full"
-                      style={{ 
-                        width: `${viewZoom * 100}%`, 
-                        height: `${viewZoom * 100}%`,
-                        transition: isPanning ? 'none' : 'width 0.1s, height 0.1s ease-out'
-                      }}
+                  <DraggableToolbar isLocked={isToolbarLocked} onToggleLock={() => setIsToolbarLocked(!isToolbarLocked)}>
+                    <button disabled={isProcessing} onClick={() => processImage('Eliminar Fondo', 'Remove the background of this image, leaving only the main subject on a pure white background.', currentImage!)} className="p-2 hover:bg-bg rounded-lg text-btn-text hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Eliminar Fondo">
+                      <Scissors size={18} />
+                    </button>
+                    <button disabled={isProcessing} onClick={() => processImage('Vectorizar', 'Convert this image into a highly detailed, realistic vector art style. Maximize the number of colors, gradients, and detail level to create a faithful representation of the original image. Do NOT use line art, hard edges, or flat colors. Prioritize high photographic fidelity, preserving textures, shadows, lights, and smooth transitions between tones.', currentImage!)} className="p-2 hover:bg-bg rounded-lg text-btn-text hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Vectorizar (Alta Fidelidad)">
+                      <Wand2 size={18} />
+                    </button>
+                    <button disabled={isProcessing} onClick={() => processImage('Aumentar Calidad', 'Upscale and enhance the quality of this photo, make it high resolution, sharp, and detailed. Reconstruct details creatively, increasing sharpness and realism without generating artificial artifacts. Preserve textures, sharp edges, and visual coherence. Apply super-resolution techniques to maintain or improve original details while upscaling.', currentImage!, undefined, { model: 'gemini-3.1-flash-image-preview', imageConfig: { imageSize: '2K' } })} className="p-2 hover:bg-bg rounded-lg text-btn-text hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Aumentar Calidad">
+                      <Sparkles size={18} />
+                    </button>
+                    <button disabled={isProcessing} onClick={() => processImage('Optimizar Foto', 'Improve the overall quality of this image. Enhance sharpness, fix lighting, improve contrast, and reduce noise. Do NOT alter the content, composition, or original elements of the image. Keep it exactly the same but with professional photographic quality.', currentImage!)} className="p-2 hover:bg-bg rounded-lg text-btn-text hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Optimizar Foto">
+                      <SlidersHorizontal size={18} />
+                    </button>
+                    <button disabled={isProcessing} onClick={() => processImage('Efecto de Estudio', 'Enhance this photo with professional studio lighting, cinematic color grading, and sharp details. Do NOT add, remove, or alter any objects, people, or the background composition. Keep the exact same content, just improve the lighting, contrast, and photographic quality.', currentImage!)} className="p-2 hover:bg-bg rounded-lg text-btn-text hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Efecto de Estudio">
+                      <Sun size={18} />
+                    </button>
+                    <button disabled={isProcessing} onClick={() => setIsChangeBgMode(true)} className="p-2 hover:bg-bg rounded-lg text-btn-text hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Cambiar fondo con IA">
+                      <ImagePlus size={18} />
+                    </button>
+                    <button disabled={isProcessing} onClick={startEraseMode} className="p-2 hover:bg-bg rounded-lg text-btn-text hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Borrar Objetos">
+                      <Eraser size={18} />
+                    </button>
+                    <button disabled={isProcessing} onClick={() => processImage('Retrato', 'Smooth skin (smooth effect) without losing naturalness. Remove blemishes, imperfections, and pimples. Reduce or eliminate dark circles. Deflate puffy eyes. Maintain realistic texture avoiding artificial effect.', currentImage!)} className="p-2 hover:bg-bg rounded-lg text-btn-text hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Retrato (Suavizar piel)">
+                      <UserCircle size={18} />
+                    </button>
+                    <button disabled={isProcessing} onClick={() => processImage('Restaurar', 'Restore this old photo into a professional portrait of DSLR-quality colour and detail, using an advanced upscaling algorithm comparable to the results from the Canon EOS R6 Mark II. Ensure the restored image looks natural, retains exact facial features, has great clarity and no noise. As if taken right now with Canon EOS R6 Mark II', currentImage!, undefined, { model: 'gemini-3.1-flash-image-preview', imageConfig: { imageSize: '2K' } })} className="p-2 hover:bg-bg rounded-lg text-btn-text hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Restaurar">
+                      <Camera size={18} />
+                    </button>
+                    <button disabled={isProcessing} onClick={() => handleCropAction(currentImage!)} className="p-2 hover:bg-bg rounded-lg text-btn-text hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Recortar">
+                      <CropIcon size={18} />
+                    </button>
+                    <button disabled={isProcessing} onClick={() => startInteractiveMode(currentImage!)} className="p-2 hover:bg-bg rounded-lg text-btn-text hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Achicar y Agrandar">
+                      <MoveDiagonal size={18} />
+                    </button>
+                    <div className="w-px bg-border my-1 mx-1"></div>
+                    <button onClick={() => setShowOriginal(!showOriginal)} className={`p-2 hover:bg-bg rounded-lg transition-colors ${!showOriginal ? 'text-accent' : 'text-btn-text hover:text-accent'}`} title={showOriginal ? "Ocultar imagen original" : "Mostrar imagen original"}>
+                      <ImageIcon size={18} />
+                    </button>
+                    <button disabled={isProcessing} onClick={handleRotateCurrent} className="p-2 hover:bg-bg rounded-lg text-btn-text hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Rotar 90°">
+                      <RotateCcw size={18} />
+                    </button>
+                  </DraggableToolbar>
+                  <div className="flex-1 w-full relative flex items-center justify-center bg-btn-bg/50 rounded-xl border-2 border-accent/20 overflow-hidden">
+                    <div className="absolute top-1/2 -translate-y-1/2 right-4 flex flex-col bg-btn-bg/90 backdrop-blur rounded-xl shadow-md border-2 border-btn-border overflow-hidden z-20">
+                      <button 
+                        onClick={() => { 
+                          if (previousImage) {
+                            setHistory(prev => [...prev, { id: Date.now().toString(), image: currentImage!, action: pendingAction || 'Modificación' }]);
+                            setPreviousImage(null); 
+                            setPendingAction(null);
+                          }
+                        }} 
+                        disabled={!previousImage}
+                        className="flex items-center justify-center p-3 hover:bg-bg text-btn-text hover:text-accent disabled:opacity-50 disabled:cursor-not-allowed" title="Aplicar cambios">
+                        <Check size={20} />
+                      </button>
+                      <div className="h-px w-full bg-border"></div>
+                      <button 
+                        onClick={() => { 
+                          if (previousImage) {
+                            setCurrentImage(previousImage); 
+                            setPreviousImage(null); 
+                            setPendingAction(null);
+                          }
+                        }} 
+                        disabled={!previousImage}
+                        className="flex items-center justify-center p-3 hover:bg-bg text-btn-text hover:text-accent disabled:opacity-50 disabled:cursor-not-allowed" title="Cancelar cambios">
+                        <X size={20} />
+                      </button>
+                      <div className="h-px w-full bg-border"></div>
+                      <button 
+                        onClick={handleUndo} 
+                        disabled={history.length <= 1 && !previousImage}
+                        className="flex items-center justify-center p-3 hover:bg-bg text-btn-text disabled:opacity-50 disabled:cursor-not-allowed" title="Deshacer cambio">
+                        <Undo2 size={20} />
+                      </button>
+                    </div>
+                    <TransformWrapper
+                      initialScale={1}
+                      minScale={0.1}
+                      maxScale={8}
+                      centerOnInit={true}
+                      wheel={{ step: 0.1 }}
                     >
-                      <img 
-                        src={currentImage!} 
-                        alt="Modificado" 
-                        className="max-w-full max-h-full object-contain drop-shadow-xl pointer-events-none" 
-                        referrerPolicy="no-referrer" 
-                      />
-                    </div>
-                    
-                    {/* View Controls Toolbar */}
-                    <div className="absolute bottom-2 right-2 flex bg-btn-bg/90 backdrop-blur rounded-xl shadow-md border-2 border-btn-border overflow-hidden z-10 cursor-default" onMouseDown={(e) => e.stopPropagation()}>
-                      <button onClick={() => setViewZoom(z => Math.max(0.1, z - 0.2))} className="p-1.5 hover:bg-bg text-btn-text" title="Achicar vista"><ZoomOut size={16} /></button>
-                      <div className="flex items-center justify-center px-1 text-xs font-medium text-slate-600 min-w-[3rem] select-none">
-                        {Math.round(viewZoom * 100)}%
-                      </div>
-                      <button onClick={() => setViewZoom(z => Math.min(5, z + 0.2))} className="p-1.5 hover:bg-bg text-btn-text" title="Agrandar vista"><ZoomIn size={16} /></button>
-                      <div className="w-px bg-slate-200"></div>
-                      <button onClick={() => { setViewZoom(1); if(modifiedContainerRef.current) { modifiedContainerRef.current.scrollLeft = 0; modifiedContainerRef.current.scrollTop = 0; } }} className="p-1.5 hover:bg-bg text-btn-text" title="Centrar y restaurar vista"><Move size={16} /></button>
-                    </div>
+                      {({ zoomIn, zoomOut, resetTransform, scale }) => (
+                        <>
+                          <TransformComponent wrapperClass="!w-full !h-full" contentClass="!w-full !h-full flex items-center justify-center">
+                            <img 
+                              src={currentImage!} 
+                              alt="Modificado" 
+                              className="max-w-full max-h-full object-contain drop-shadow-xl pointer-events-none will-change-transform" 
+                              referrerPolicy="no-referrer" 
+                            />
+                          </TransformComponent>
+                          <div className="absolute bottom-2 right-2 flex bg-btn-bg/90 backdrop-blur rounded-xl shadow-md border-2 border-btn-border overflow-hidden z-10">
+                            <button onClick={() => zoomOut()} className="p-3 hover:bg-bg text-btn-text"><ZoomOut size={20} /></button>
+                            <div className="flex items-center justify-center px-3 text-sm font-bold text-text/80 min-w-[4rem] select-none">
+                              {Math.round(scale * 100)}%
+                            </div>
+                            <button onClick={() => zoomIn()} className="p-3 hover:bg-bg text-btn-text"><ZoomIn size={20} /></button>
+                            <div className="w-px bg-border"></div>
+                            <button onClick={() => resetTransform()} className="p-3 hover:bg-bg text-btn-text"><Maximize size={20} /></button>
+                          </div>
+                        </>
+                      )}
+                    </TransformWrapper>
                   </div>
                 </div>
               </div>
@@ -1015,47 +1490,28 @@ export default function App() {
             {isProcessing && (
               <div className="absolute inset-0 bg-panel backdrop-blur-sm flex flex-col items-center justify-center z-10">
                 <Loader2 size={48} className="text-accent animate-spin mb-4" />
-                <p className="text-text font-bold bg-btn-bg px-6 py-3 rounded-full shadow-lg border border-slate-100">
+                <p className="text-text font-bold bg-btn-bg px-6 py-3 rounded-full shadow-lg border-2 border-border">
                   Procesando: {processingAction}...
                 </p>
               </div>
             )}
           </div>
 
-          {previousImage && !isProcessing && (
-            <div className="flex justify-center gap-4 mt-4">
-              <button 
-                onClick={() => { setCurrentImage(previousImage); setPreviousImage(null); setPendingAction(null); }} 
-                className="flex items-center gap-2 px-5 py-2.5 bg-btn-bg border-2 border-btn-border text-btn-text rounded-xl hover:bg-bg font-bold transition-all shadow-sm"
-              >
-                <Undo2 size={18} /> Deshacer
-              </button>
-              <button 
-                onClick={() => { 
-                  setHistory(prev => [...prev, { id: Date.now().toString(), image: currentImage!, action: pendingAction || 'Modificación' }]);
-                  setPreviousImage(null); 
-                  setPendingAction(null);
-                }} 
-                className="flex items-center gap-2 px-5 py-2.5 bg-accent text-white rounded-xl hover:bg-blue-700 font-bold shadow-md transition-all border-2 border-btn-border"
-              >
-                <Check size={18} /> Aceptar Cambios
-              </button>
-            </div>
-          )}
         </div>
+        )}
 
         {/* RIGHT PANEL */}
-        <div className="w-full lg:w-80 bg-panel backdrop-blur-xl border border-white/40 shadow-xl rounded-3xl p-6 flex flex-col gap-4 shrink-0">
-          <div className="flex bg-slate-200/50 p-1 rounded-xl">
+        <div className="w-full lg:w-72 bg-panel backdrop-blur-xl border-2 border-border shadow-xl rounded-3xl p-6 flex flex-col gap-4 shrink-0">
+          <div className="flex bg-panel p-1 rounded-xl border-2 border-border">
             <button 
               onClick={() => setRightTab('history')}
-              className={`flex-1 py-1.5 text-sm font-bold rounded-lg transition-all ${rightTab === 'history' ? 'bg-btn-bg text-text shadow-sm' : 'text-slate-500 hover:text-btn-text'}`}
+              className={`flex-1 py-1.5 text-sm font-bold rounded-lg transition-all ${rightTab === 'history' ? 'bg-btn-bg text-text shadow-sm' : 'text-text/60 hover:text-btn-text'}`}
             >
               Historial
             </button>
             <button 
               onClick={() => setRightTab('similar')}
-              className={`flex-1 py-1.5 text-sm font-bold rounded-lg transition-all ${rightTab === 'similar' ? 'bg-btn-bg text-text shadow-sm' : 'text-slate-500 hover:text-btn-text'}`}
+              className={`flex-1 py-1.5 text-sm font-bold rounded-lg transition-all ${rightTab === 'similar' ? 'bg-btn-bg text-text shadow-sm' : 'text-text/60 hover:text-btn-text'}`}
             >
               Similares
             </button>
@@ -1064,7 +1520,7 @@ export default function App() {
           {rightTab === 'history' ? (
             <div className="flex-1 overflow-y-auto flex flex-col gap-3 pr-2 custom-scrollbar">
               {history.length === 0 ? (
-                <div className="flex-1 flex items-center justify-center text-slate-400 text-sm text-center px-4 font-medium">
+                <div className="flex-1 flex items-center justify-center text-text/40 text-sm text-center px-4 font-medium">
                   Sube una imagen para ver el historial de cambios.
                 </div>
               ) : (
@@ -1072,15 +1528,15 @@ export default function App() {
                   {history.map((item, idx) => (
                     <div 
                       key={item.id} 
-                      className={`p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center gap-3 ${idx === history.length - 1 && !previousImage ? 'border-blue-500 bg-blue-50' : 'border-border bg-btn-bg hover:border-blue-300'}`}
+                      className={`p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center gap-3 ${idx === history.length - 1 && !previousImage ? 'border-accent bg-accent/10' : 'border-border bg-btn-bg hover:border-accent/50'}`}
                       onClick={() => revertToHistory(idx)}
                     >
-                      <div className="w-12 h-12 rounded-lg bg-slate-100 border border-border overflow-hidden flex-shrink-0">
+                      <div className="w-12 h-12 rounded-lg bg-panel border-2 border-border overflow-hidden flex-shrink-0">
                         <img src={item.image} alt={item.action} className="w-full h-full object-cover" />
                       </div>
                       <div className="flex flex-col">
                         <span className="text-sm font-bold text-text">{item.action}</span>
-                        <span className="text-xs text-slate-500">Paso {idx + 1}</span>
+                        <span className="text-xs text-text/60">Paso {idx + 1}</span>
                       </div>
                       {idx === history.length - 1 && !previousImage && (
                         <div className="ml-auto w-2 h-2 rounded-full bg-accent"></div>
@@ -1088,12 +1544,12 @@ export default function App() {
                     </div>
                   ))}
                   {previousImage && (
-                    <div className="p-3 rounded-xl border-2 border-dashed border-blue-400 bg-blue-50/50 flex items-center gap-3 opacity-70">
-                      <div className="w-12 h-12 rounded-lg bg-slate-100 border border-border overflow-hidden flex-shrink-0">
+                    <div className="p-3 rounded-xl border-2 border-dashed border-border bg-accent/10 flex items-center gap-3 opacity-70">
+                      <div className="w-12 h-12 rounded-lg bg-panel border-2 border-border overflow-hidden flex-shrink-0">
                         <img src={currentImage!} alt="Pending" className="w-full h-full object-cover" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-sm font-bold text-blue-800">{pendingAction || 'Modificación'}</span>
+                        <span className="text-sm font-bold text-accent">{pendingAction || 'Modificación'}</span>
                         <span className="text-xs text-accent">Sin guardar</span>
                       </div>
                       <Loader2 size={14} className="ml-auto text-accent animate-spin" />
@@ -1108,19 +1564,19 @@ export default function App() {
                 <button 
                   onClick={findSimilarImages}
                   disabled={!currentImage || isProcessing}
-                  className="flex-1 flex items-center justify-center gap-2 bg-accent text-white py-2.5 px-2 rounded-xl hover:bg-blue-700 transition-all font-semibold shadow-md disabled:opacity-50 disabled:cursor-not-allowed text-sm border-2 border-btn-border"
+                  className="flex-1 flex items-center justify-center gap-2 bg-btn-bg text-btn-text py-3 px-3 rounded-xl hover:bg-bg transition-all font-bold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base border-2 border-btn-border overflow-hidden"
                   title="Generar similares con IA"
                 >
-                  <Search size={16} />
-                  <span>Internet (IA)</span>
+                  <Search size={18} className="shrink-0" />
+                  <span className="truncate">Internet (IA)</span>
                 </button>
                 <button 
                   onClick={() => similarFileInputRef.current?.click()}
-                  className="flex-1 flex items-center justify-center gap-2 bg-primary text-white py-2.5 px-2 rounded-xl hover:bg-primary-hover transition-all font-semibold shadow-md text-sm border-2 border-btn-border"
-                  title="Cargar desde tu PC"
+                  className="flex-1 flex items-center justify-center gap-2 bg-btn-bg text-btn-text py-3 px-3 rounded-xl hover:bg-bg transition-all font-bold shadow-sm text-sm sm:text-base border-2 border-btn-border overflow-hidden"
+                  title="Cargar desde galería"
                 >
-                  <Upload size={16} />
-                  <span>Mi PC</span>
+                  <Upload size={18} className="shrink-0" />
+                  <span className="truncate">Galería</span>
                 </button>
                 <input 
                   type="file" 
@@ -1135,15 +1591,16 @@ export default function App() {
               <div className="flex-1 overflow-y-auto flex flex-col gap-4 pr-2 custom-scrollbar">
                 {similarImages.length > 0 ? (
                   similarImages.map((img, idx) => (
-                    <div key={idx} className="bg-btn-bg p-2 rounded-xl shadow-sm border border-border group relative cursor-pointer hover:border-blue-400 transition-colors" onClick={() => { setPreviousImage(currentImage); setCurrentImage(img); setPendingAction('Imagen Similar'); }}>
-                      <img src={img} alt={`Similar ${idx}`} className="w-full h-40 object-cover rounded-lg" referrerPolicy="no-referrer" />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center">
-                        <span className="text-white font-bold text-sm bg-black/60 px-4 py-2 rounded-full backdrop-blur-sm">Usar esta</span>
+                    <div key={idx} className="bg-btn-bg p-2 rounded-xl shadow-sm border-2 border-border group relative cursor-pointer hover:border-accent transition-colors">
+                      <img src={img} alt={`Similar ${idx}`} className="w-full h-40 object-cover rounded-lg" referrerPolicy="no-referrer" onClick={() => { setPreviousImage(currentImage); setCurrentImage(img); setPendingAction('Imagen Similar'); }} />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex flex-col items-center justify-center gap-2 pointer-events-none">
+                        <button className="text-bg font-bold text-sm bg-black/60 px-4 py-2 rounded-full backdrop-blur-sm pointer-events-auto hover:bg-black/80 transition-colors" onClick={(e) => { e.stopPropagation(); setPreviousImage(currentImage); setCurrentImage(img); setPendingAction('Imagen Similar'); }}>Usar esta</button>
+                        <button className="text-bg font-bold text-sm bg-accent/80 px-4 py-2 rounded-full backdrop-blur-sm pointer-events-auto hover:bg-accent transition-colors" onClick={(e) => { e.stopPropagation(); processImage('Transferir Pose', 'Transfer the pose, attitude, and facial expression from the original image to this image. Maintain the identity and style of this image but adopt the pose of the original.', img, originalImage!); }}>Transferir Pose</button>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="flex-1 flex items-center justify-center text-slate-400 text-sm text-center px-4 font-medium">
+                  <div className="flex-1 flex items-center justify-center text-text/40 text-sm text-center px-4 font-medium">
                     Haz clic en "Buscar Similares" para encontrar variaciones de tu imagen.
                   </div>
                 )}
