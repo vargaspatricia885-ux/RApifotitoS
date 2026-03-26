@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, Link as LinkIcon, Image as ImageIcon, Sparkles, Wand2, Scissors, Search, Download, Loader2, SlidersHorizontal, Check, Undo2, Trash2, ChevronDown, ChevronUp, Maximize, MoveDiagonal, Aperture, ZoomIn, ZoomOut, Move, RotateCcw, Crop as CropIcon, Camera, Palette, Filter as FilterIcon, Rocket, Smile, Wind, QrCode, Smartphone, X, Zap, Gem, Sun, GripHorizontal, Lock, Unlock, ImagePlus, Save, Eraser, UserCircle } from 'lucide-react';
+import { Upload, Link as LinkIcon, Image as ImageIcon, Sparkles, Wand2, Scissors, Search, Download, Loader2, SlidersHorizontal, Check, Undo2, Trash2, ChevronDown, ChevronUp, Maximize, MoveDiagonal, Aperture, ZoomIn, ZoomOut, Move, RotateCcw, Crop as CropIcon, Camera, Palette, Filter as FilterIcon, Rocket, Smile, Wind, QrCode, Smartphone, X, Zap, Gem, Sun, GripHorizontal, Lock, Unlock, ImagePlus, Save, Eraser, UserCircle, Settings } from 'lucide-react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { GoogleGenAI } from '@google/genai';
 import ReactCrop, { type Crop } from 'react-image-crop';
@@ -8,7 +8,16 @@ import 'react-image-crop/dist/ReactCrop.css';
 import ImageTracer from 'imagetracerjs';
 import { jsPDF } from 'jspdf';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+declare global {
+  interface Window {
+    aistudio?: {
+      hasSelectedApiKey: () => Promise<boolean>;
+      openSelectKey: () => Promise<void>;
+    };
+  }
+}
+
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || process.env.GEMINI_API_KEY });
 
 interface HistoryItem {
   id: string;
@@ -20,20 +29,23 @@ function DraggableToolbar({ children, isLocked, onToggleLock }: { children: Reac
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isVertical, setIsVertical] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0, initialX: 0, initialY: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     if (isLocked) return;
-    if ((e.target as HTMLElement).closest('.drag-handle')) {
-      setIsDragging(true);
-      dragRef.current = {
-        startX: e.clientX,
-        startY: e.clientY,
-        initialX: position.x,
-        initialY: position.y
-      };
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    }
+    // Prevent dragging if clicking on an interactive element like a button
+    if ((e.target as HTMLElement).closest('button, input, [role="button"]')) return;
+    
+    setIsDragging(true);
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initialX: position.x,
+      initialY: position.y
+    };
+    containerRef.current?.setPointerCapture(e.pointerId);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
@@ -49,29 +61,34 @@ function DraggableToolbar({ children, isLocked, onToggleLock }: { children: Reac
   const handlePointerUp = (e: React.PointerEvent) => {
     if (isDragging) {
       setIsDragging(false);
-      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+      containerRef.current?.releasePointerCapture(e.pointerId);
     }
   };
 
   return (
     <div 
-      className="absolute flex flex-col gap-1 bg-btn-bg/90 backdrop-blur rounded-xl shadow-lg border-2 border-btn-border p-1 z-50 max-w-[90%] transition-shadow"
+      ref={containerRef}
+      className={`fixed flex flex-col gap-1 bg-btn-bg/90 backdrop-blur rounded-xl shadow-lg border-2 border-btn-border p-1 z-[100] transition-shadow ${isVertical ? 'w-14' : 'max-w-[90%]'}`}
       style={{ 
-        top: '8px', right: '8px', 
+        top: '80px', right: '20px', 
         transform: `translate(${position.x}px, ${position.y}px)`,
-        cursor: isDragging ? 'grabbing' : 'auto',
-        boxShadow: isDragging ? '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)' : ''
+        cursor: isLocked ? 'auto' : (isDragging ? 'grabbing' : 'grab'),
+        boxShadow: isDragging ? '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)' : '',
+        touchAction: 'none'
       }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
     >
-      <div className="flex justify-between items-center px-2 py-1 border-b-2 border-border mb-1 gap-2">
-         <div className={`drag-handle flex-1 flex justify-center cursor-${isLocked ? 'default' : 'grab'} py-1`} title={isLocked ? "Desbloquear para mover" : "Arrastrar para mover"}>
+      <div className={`flex ${isVertical ? 'flex-col' : 'justify-between items-center'} px-1 py-1 border-${isVertical ? 'b' : 'b'}-2 border-border mb-1 gap-1`}>
+         <div className={`flex-1 flex justify-center py-1`} title={isLocked ? "Desbloquear para mover" : "Arrastrar para mover"}>
            <Move size={16} className={`text-text/40 ${isLocked ? 'opacity-50' : 'hover:text-text/60'}`} />
          </div>
-         <div className="flex items-center gap-1">
+         <div className={`flex ${isVertical ? 'flex-col' : 'items-center'} gap-1`}>
+           <button onClick={() => setIsVertical(!isVertical)} className="text-text/40 hover:text-accent p-1" title={isVertical ? "Horizontal" : "Vertical"}>
+             <GripHorizontal size={14} className={isVertical ? 'rotate-90' : ''} />
+           </button>
            <button onClick={onToggleLock} className="text-text/40 hover:text-accent p-1" title={isLocked ? "Desbloquear" : "Bloquear posición"}>
              {isLocked ? <Lock size={14} /> : <Unlock size={14} />}
            </button>
@@ -81,7 +98,7 @@ function DraggableToolbar({ children, isLocked, onToggleLock }: { children: Reac
          </div>
       </div>
       {!isCollapsed && (
-        <div className="flex flex-wrap justify-end gap-1">
+        <div className={`flex ${isVertical ? 'flex-col' : 'flex-wrap justify-end'} gap-1`}>
           {children}
         </div>
       )}
@@ -100,16 +117,104 @@ export default function App() {
   const VISUAL_STYLES = [
     { id: 'black', name: 'Black', icon: <Gem size={16} /> },
     { id: 'vibrante', name: 'Vibrante', icon: <Zap size={16} /> },
-    { id: 'suave', name: 'Suave', icon: <Palette size={16} /> },
     { id: 'minimalista', name: 'Minimalista', icon: <Gem size={16} /> }
   ];
+
+  const DEFAULT_THEMES: Record<string, Record<string, string>> = {
+    black: {
+      '--theme-bg-top': '#000000',
+      '--theme-bg-bottom': '#0a0a0a',
+      '--theme-bg': '#050505',
+      '--theme-panel': '#111111',
+      '--theme-text': '#ffffff',
+      '--theme-border': '#ffffff',
+      '--theme-btn-bg': '#000000',
+      '--theme-btn-text': '#ffffff',
+      '--theme-btn-border': '#ffffff',
+      '--theme-accent': '#ffffff',
+    },
+    vibrante: {
+      '--theme-bg-top': '#0f0c29',
+      '--theme-bg-bottom': '#24243e',
+      '--theme-bg': '#1a1a2e',
+      '--theme-panel': '#141428',
+      '--theme-text': '#ffffff',
+      '--theme-border': '#00f2fe',
+      '--theme-btn-bg': '#000000',
+      '--theme-btn-text': '#ffffff',
+      '--theme-btn-border': '#ff0844',
+      '--theme-accent': '#ff0844',
+    },
+    minimalista: {
+      '--theme-bg-top': '#ffffff',
+      '--theme-bg-bottom': '#f5f5f5',
+      '--theme-bg': '#ffffff',
+      '--theme-panel': '#ffffff',
+      '--theme-text': '#000000',
+      '--theme-border': '#000000',
+      '--theme-btn-bg': '#ffffff',
+      '--theme-btn-text': '#000000',
+      '--theme-btn-border': '#000000',
+      '--theme-accent': '#000000',
+    }
+  };
+
   const [theme, setTheme] = useState('black');
-  
-  const [appLogo, setAppLogo] = useState<string | null>(null);
-  const [isAppLogoLocked, setIsAppLogoLocked] = useState(false);
-  const appLogoInputRef = useRef<HTMLInputElement>(null);
-  
   const [isProcessing, setIsProcessing] = useState(false);
+  const [customThemes, setCustomThemes] = useState<Record<string, Record<string, string>>>({});
+  const [draftTheme, setDraftTheme] = useState<Record<string, string> | null>(null);
+  const [isCustomizingTheme, setIsCustomizingTheme] = useState(false);
+  const [hasKey, setHasKey] = useState(true);
+
+  useEffect(() => {
+    const checkKey = async () => {
+      if (window.aistudio?.hasSelectedApiKey) {
+        const has = await window.aistudio.hasSelectedApiKey();
+        setHasKey(has);
+      }
+    };
+    checkKey();
+  }, []);
+  
+  const getContrastColor = (hexColor: string) => {
+    // Remove the hash if it exists
+    const hex = hexColor.replace('#', '');
+    
+    // Convert hex to RGB
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    
+    // Calculate relative luminance
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    
+    // Return black for light backgrounds, white for dark backgrounds
+    return luminance > 0.5 ? '#000000' : '#ffffff';
+  };
+
+  const handleThemeChange = (key: string, value: string) => {
+    setDraftTheme(prev => {
+      const currentThemeSettings = { ...(prev || customThemes[theme] || DEFAULT_THEMES[theme]) };
+      currentThemeSettings[key] = value;
+      
+      // Automatically adjust related colors to maintain consistency
+      if (key === '--theme-bg') {
+        currentThemeSettings['--theme-bg-top'] = value;
+        currentThemeSettings['--theme-bg-bottom'] = value;
+        currentThemeSettings['--theme-text'] = getContrastColor(value);
+      }
+      
+      if (key === '--theme-btn-bg') {
+        currentThemeSettings['--theme-btn-text'] = getContrastColor(value);
+      }
+
+      return currentThemeSettings;
+    });
+  };
+
+  const resetTheme = () => {
+    setDraftTheme({ ...DEFAULT_THEMES[theme] });
+  };
   const [processingAction, setProcessingAction] = useState<string | null>(null);
   const [similarImages, setSimilarImages] = useState<string[]>([]);
   const [urlInput, setUrlInput] = useState('');
@@ -457,10 +562,10 @@ export default function App() {
 
   const startCropMode = () => {
     if (!currentImage) return;
-    setCrop(undefined);
-    setCompletedCrop(null);
-    setCropWidthPercent(100);
-    setCropHeightPercent(100);
+    setCrop({ unit: '%', width: 80, height: 80, x: 10, y: 10 });
+    setCompletedCrop({ unit: '%', width: 80, height: 80, x: 10, y: 10 } as any);
+    setCropWidthPercent(80);
+    setCropHeightPercent(80);
     setIsCropMode(true);
   };
 
@@ -745,7 +850,7 @@ export default function App() {
       }
 
       // Re-initialize GoogleGenAI to ensure it uses the latest API key if selected
-      const currentAi = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const currentAi = new GoogleGenAI({ apiKey: process.env.API_KEY || process.env.GEMINI_API_KEY });
 
       const response = await currentAi.models.generateContent({
         model: options?.model || 'gemini-2.5-flash-image',
@@ -766,6 +871,9 @@ export default function App() {
       }
     } catch (error: any) {
       console.error("Error processing image:", error);
+      if (error.message?.includes("Requested entity was not found") || error.message?.includes("PERMISSION_DENIED") || error.message?.includes("403")) {
+        setHasKey(false);
+      }
       alert(error.message || "Hubo un error al procesar la imagen. Por favor, intenta de nuevo.");
     } finally {
       setIsProcessing(false);
@@ -784,9 +892,11 @@ export default function App() {
 
       const newSimilarImages: string[] = [];
       
+      const currentAi = new GoogleGenAI({ apiKey: process.env.API_KEY || process.env.GEMINI_API_KEY });
+      
       // Generate 2 variations in parallel
       const promises = Array(2).fill(0).map((_, i) => {
-        return ai.models.generateContent({
+        return currentAi.models.generateContent({
           model: 'gemini-2.5-flash-image',
           contents: {
             parts: [
@@ -819,6 +929,9 @@ export default function App() {
 
     } catch (error: any) {
       console.error("Error finding similar images:", error);
+      if (error.message?.includes("Requested entity was not found") || error.message?.includes("PERMISSION_DENIED") || error.message?.includes("403")) {
+        setHasKey(false);
+      }
       alert(error.message || "Hubo un error al buscar imágenes similares.");
     } finally {
       setIsProcessing(false);
@@ -826,8 +939,44 @@ export default function App() {
     }
   };
 
+  if (!hasKey) {
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center p-4" data-theme={theme === 'slate' ? undefined : theme} style={(isCustomizingTheme && draftTheme ? draftTheme : customThemes[theme]) as React.CSSProperties}>
+        <div className="bg-panel max-w-md w-full rounded-3xl p-8 shadow-xl border-2 border-border text-center flex flex-col items-center gap-6">
+          <div className="w-16 h-16 bg-accent/20 rounded-full flex items-center justify-center text-accent">
+            <Lock size={32} />
+          </div>
+          <div>
+            <h2 className="text-2xl font-black text-text mb-2">Clave de API Requerida</h2>
+            <p className="text-text/70 mb-4">
+              Para usar las funciones avanzadas de procesamiento de imágenes, necesitas configurar tu propia clave de API de Gemini.
+            </p>
+            <p className="text-text/70 text-sm">
+              Asegúrate de seleccionar una clave de un proyecto de Google Cloud con facturación habilitada. <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="text-accent hover:underline font-bold">Más información</a>.
+            </p>
+          </div>
+          <button 
+            onClick={async () => {
+              if (window.aistudio?.openSelectKey) {
+                await window.aistudio.openSelectKey();
+                setHasKey(true);
+              }
+            }}
+            className="w-full py-4 bg-accent text-bg rounded-xl font-bold text-lg hover:bg-accent/90 transition-colors shadow-lg"
+          >
+            Seleccionar Clave de API
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-bg-top to-bg-bottom relative overflow-auto font-sans text-text flex" data-theme={theme === 'slate' ? undefined : theme}>
+    <div 
+      className="min-h-screen bg-gradient-to-b from-bg-top to-bg-bottom relative overflow-x-hidden overflow-y-auto font-sans text-text flex" 
+      data-theme={theme === 'slate' ? undefined : theme}
+      style={(isCustomizingTheme && draftTheme ? draftTheme : customThemes[theme]) as React.CSSProperties}
+    >
       {/* Background blobs */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] blob-1 rounded-full mix-blend-multiply filter blur-[100px] opacity-70 animate-blob"></div>
       <div className="absolute top-[20%] right-[-10%] w-[40%] h-[40%] blob-2 rounded-full mix-blend-multiply filter blur-[100px] opacity-70 animate-blob animation-delay-2000"></div>
@@ -886,92 +1035,122 @@ export default function App() {
         </div>
       )}
 
+      {/* Theme Customization Modal */}
+      {isCustomizingTheme && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-panel w-full max-w-md rounded-3xl p-6 shadow-xl border-2 border-border flex flex-col gap-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xl font-black text-text">Personalizar Estilo</h3>
+              <button onClick={() => setIsCustomizingTheme(false)} className="p-2 text-text/60 hover:text-accent rounded-full hover:bg-bg transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-sm text-text/70 mb-2">Ajusta los colores para el tema actual ({VISUAL_STYLES.find(s => s.id === theme)?.name}).</p>
+            
+            <div className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
+              {[
+                { key: '--theme-bg', label: 'Fondo Principal' },
+                { key: '--theme-panel', label: 'Fondo de Paneles' },
+                { key: '--theme-text', label: 'Texto Principal' },
+                { key: '--theme-accent', label: 'Color de Acento' },
+                { key: '--theme-border', label: 'Bordes' },
+                { key: '--theme-btn-bg', label: 'Fondo de Botones' },
+                { key: '--theme-btn-text', label: 'Texto de Botones' },
+              ].map(item => {
+                const currentValue = draftTheme?.[item.key] || customThemes[theme]?.[item.key] || DEFAULT_THEMES[theme]?.[item.key] || '#000000';
+                return (
+                  <div key={item.key} className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-text">{item.label}</span>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="color" 
+                        value={currentValue} 
+                        onChange={(e) => handleThemeChange(item.key, e.target.value)}
+                        className="w-8 h-8 rounded cursor-pointer border-0 p-0 bg-transparent"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end gap-3 mt-4 pt-4 border-t-2 border-border">
+              <button 
+                onClick={resetTheme}
+                className="flex items-center justify-center gap-2 text-sm font-bold text-text hover:text-accent px-4 py-2 transition-colors"
+              >
+                Restaurar
+              </button>
+              <button 
+                onClick={() => {
+                  if (draftTheme) {
+                    setCustomThemes(prev => ({
+                      ...prev,
+                      [theme]: draftTheme
+                    }));
+                  }
+                  setIsCustomizingTheme(false);
+                }}
+                className="flex items-center justify-center gap-2 text-sm font-bold bg-accent text-bg hover:opacity-90 px-6 py-2 rounded-xl border-2 border-accent shadow-sm transition-all"
+              >
+                <Check size={16} />
+                Aplicar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Style Switcher - Horizontal Top Bar */}
       <div className="fixed top-0 left-0 right-0 z-50 w-full bg-panel/80 backdrop-blur-md border-b-2 border-border shadow-sm">
-        <div className="flex items-center justify-center gap-2 p-2 overflow-x-auto custom-scrollbar max-w-7xl mx-auto">
-          {VISUAL_STYLES.map(s => (
-            <button
-              key={s.id}
-              onClick={() => setTheme(s.id)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap ${theme === s.id ? 'bg-accent text-bg shadow-md' : 'text-text hover:bg-black/5 dark:hover:bg-white/10'}`}
-            >
-              {s.icon}
-              {s.name}
-            </button>
-          ))}
+        <div className="flex items-center justify-center gap-2 p-2 overflow-x-auto custom-scrollbar max-w-7xl mx-auto relative">
+          <button
+            onClick={() => {
+              const nextTheme = VISUAL_STYLES[(VISUAL_STYLES.findIndex(s => s.id === theme) + 1) % VISUAL_STYLES.length].id;
+              setTheme(nextTheme);
+              if (isCustomizingTheme) {
+                setDraftTheme(customThemes[nextTheme] || { ...DEFAULT_THEMES[nextTheme] });
+              }
+            }}
+            className="flex items-center gap-2 px-6 py-2 rounded-full text-sm font-bold bg-accent text-bg shadow-md hover:opacity-90 transition-all whitespace-nowrap"
+            title="Cambiar estilo (Clic para rotar)"
+          >
+            {VISUAL_STYLES.find(s => s.id === theme)?.icon}
+            Estilo: {VISUAL_STYLES.find(s => s.id === theme)?.name}
+          </button>
+          <button
+            onClick={() => {
+              setDraftTheme(customThemes[theme] || { ...DEFAULT_THEMES[theme] });
+              setIsCustomizingTheme(true);
+            }}
+            className="absolute right-4 p-2 rounded-full text-text hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+            title="Personalizar Estilo"
+          >
+            <Settings size={18} />
+          </button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="relative z-10 flex flex-col lg:flex-row w-full min-h-screen p-4 pt-16 lg:p-6 lg:pt-20 gap-4 lg:gap-6 overflow-auto">
+      <div className="relative z-10 flex flex-col lg:flex-row w-full min-h-screen p-4 pt-16 lg:p-6 lg:pt-20 gap-4 lg:gap-6 overflow-x-hidden overflow-y-auto">
 
         {/* LEFT PANEL: Upload & Tools */}
         <div className="w-full lg:w-72 flex flex-col gap-4 lg:gap-6 shrink-0 pb-20 lg:pb-0">
           {/* Logo */}
           <div className="relative w-full py-6 px-4 rounded-3xl bg-transparent flex flex-col items-center justify-center gap-3 border-2 border-border group overflow-visible">
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsAppLogoLocked(!isAppLogoLocked);
-              }}
-              className="absolute top-4 right-4 p-2 text-text/40 hover:text-accent z-20 bg-panel rounded-full shadow-sm border-2 border-border"
-              title={isAppLogoLocked ? "Desbloquear logo" : "Bloquear logo"}
-            >
-              {isAppLogoLocked ? <Lock size={16} /> : <Unlock size={16} />}
-            </button>
-            <input 
-              type="file" 
-              ref={appLogoInputRef} 
-              className="hidden" 
-              accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  const reader = new FileReader();
-                  reader.onload = (e) => setAppLogo(e.target?.result as string);
-                  reader.readAsDataURL(file);
-                }
-              }}
-            />
             <div 
               className={`relative flex items-center justify-center w-24 h-24 cursor-pointer ${isCameraRunning ? 'animate-run-crazy' : 'group-hover:scale-110 transition-transform duration-300'}`}
               onClick={() => {
-                if (isAppLogoLocked) return;
                 if (!isCameraRunning) setIsCameraRunning(true);
-                setIsCanvasVisible(prev => !prev);
               }}
               onAnimationEnd={() => setIsCameraRunning(false)}
             >
-              {appLogo ? (
-                <div className="relative w-full h-full group/logo">
-                  <img src={appLogo} alt="Logo" className={`w-full h-full object-contain z-10 relative ${isCameraRunning ? 'animate-bounce-fast' : ''}`} />
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      appLogoInputRef.current?.click();
-                    }}
-                    className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center opacity-0 group-hover/logo:opacity-100 transition-opacity z-20"
-                  >
-                    <Upload size={24} className="text-bg" />
-                  </button>
-                </div>
-              ) : (
-                <div className="relative w-full h-full group/logo flex items-center justify-center">
-                  <Camera size={64} className={`text-accent z-10 ${isCameraRunning ? 'animate-bounce-fast' : ''}`} strokeWidth={1.5} />
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      appLogoInputRef.current?.click();
-                    }}
-                    className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center opacity-0 group-hover/logo:opacity-100 transition-opacity z-20"
-                  >
-                    <Upload size={24} className="text-bg" />
-                  </button>
-                </div>
-              )}
+              <div className="relative w-full h-full group/logo flex items-center justify-center">
+                <Camera size={64} className={`text-accent z-10 ${isCameraRunning ? 'animate-bounce-fast' : ''}`} strokeWidth={1.5} />
+              </div>
               
               {/* Legs */}
-              {isCameraRunning && !appLogo && (
+              {isCameraRunning && (
                 <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex gap-3 z-0">
                   <div className="w-2 h-6 bg-accent rounded-full animate-leg-run-1 origin-top"></div>
                   <div className="w-2 h-6 bg-accent rounded-full animate-leg-run-2 origin-top"></div>
@@ -979,10 +1158,10 @@ export default function App() {
               )}
             </div>
             <div className="text-center">
-              <h1 className="text-3xl font-black tracking-tighter text-text logo-text">
+              <h1 className="text-3xl font-black tracking-tighter logo-text text-white">
                 RApiFotitoS
               </h1>
-              <p className="text-sm font-bold text-text/70 mt-1 logo-subtitle">
+              <p className="text-sm font-bold mt-1 logo-subtitle text-white">
                 {isCameraRunning ? '¡Atrápala!' : 'hace tus fotos geniales'}
               </p>
             </div>
@@ -995,7 +1174,7 @@ export default function App() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
               <button 
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center justify-center gap-2 w-full bg-primary text-primary-foreground py-3 px-5 rounded-xl hover:bg-primary-hover border-2 border-border transition-all font-bold text-sm sm:text-base shadow-sm"
+                className="flex items-center justify-center gap-2 w-full bg-primary text-black py-3 px-5 rounded-xl hover:bg-primary-hover border-2 border-border transition-all font-bold text-sm sm:text-base shadow-sm"
               >
                 <Upload size={20} />
                 <span>Desde galería</span>
@@ -1059,7 +1238,7 @@ export default function App() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full">
                 <button 
                   onClick={handleNewUpload}
-                  className="flex items-center justify-center gap-2 text-sm sm:text-base font-bold bg-primary text-primary-foreground hover:bg-primary-hover px-5 py-3 rounded-xl border-2 border-primary shadow-sm transition-all w-full"
+                  className="flex items-center justify-center gap-2 text-sm sm:text-base font-bold bg-primary text-black hover:bg-primary-hover px-5 py-3 rounded-xl border-2 border-primary shadow-sm transition-all w-full"
                   title="Limpiar lienzo y empezar de nuevo"
                 >
                   <Trash2 size={20} /> Nueva Carga
@@ -1207,21 +1386,24 @@ export default function App() {
                 </div>
                 
                 <div className="absolute top-4 left-4 right-4 sm:right-auto z-20 bg-btn-bg/90 backdrop-blur p-4 rounded-2xl shadow-lg border-2 border-border flex flex-col gap-4 overflow-x-auto">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={keepAspectRatio} 
-                      onChange={(e) => {
-                        setKeepAspectRatio(e.target.checked);
-                        if (e.target.checked) {
-                          setCropHeightPercent(cropWidthPercent);
-                          updateCropFromPercent(cropWidthPercent, cropWidthPercent);
-                        }
-                      }}
-                      className="w-4 h-4 text-accent rounded border-border focus:ring-accent"
-                    />
-                    <span className="text-sm font-bold text-btn-text">Mantener proporción</span>
-                  </label>
+                  <div className="flex flex-col gap-2">
+                    <span className="text-sm font-bold text-accent">Ajusta el área para recortar</span>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={keepAspectRatio} 
+                        onChange={(e) => {
+                          setKeepAspectRatio(e.target.checked);
+                          if (e.target.checked && cropWidthPercent) {
+                            setCropHeightPercent(cropWidthPercent);
+                            updateCropFromPercent(cropWidthPercent, cropWidthPercent);
+                          }
+                        }}
+                        className="w-4 h-4 text-accent rounded border-border focus:ring-accent"
+                      />
+                      <span className="text-sm font-bold text-btn-text">Mantener proporción</span>
+                    </label>
+                  </div>
                 </div>
 
                 <div className="w-full h-full flex flex-col relative p-4 mt-24">
@@ -1249,6 +1431,20 @@ export default function App() {
                               onComplete={c => setCompletedCrop(c)}
                               aspect={keepAspectRatio ? 1 : undefined}
                               className="max-w-full max-h-full m-auto"
+                              renderSelectionAddon={(state) => (
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    applyCrop();
+                                  }}
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  onTouchStart={(e) => e.stopPropagation()}
+                                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-accent text-bg p-4 rounded-full shadow-2xl hover:scale-110 transition-transform flex items-center justify-center border-4 border-bg/50 group"
+                                  title="Recortar selección"
+                                >
+                                  <CropIcon size={32} className="group-hover:animate-pulse" />
+                                </button>
+                              )}
                             >
                               <img 
                                 ref={imgRef}
@@ -1256,11 +1452,6 @@ export default function App() {
                                 className="max-w-full max-h-full object-contain shadow-md rounded-lg" 
                                 alt="Crop" 
                                 crossOrigin="anonymous"
-                                onLoad={(e) => {
-                                  // Initialize crop to 100% on load
-                                  const { width, height } = e.currentTarget;
-                                  setCrop({ unit: '%', width: 100, height: 100, x: 0, y: 0 });
-                                }}
                               />
                             </ReactCrop>
                           </TransformComponent>
@@ -1356,14 +1547,14 @@ export default function App() {
                                 referrerPolicy="no-referrer" 
                               />
                             </TransformComponent>
-                            <div className="absolute bottom-2 right-2 flex bg-btn-bg/90 backdrop-blur rounded-xl shadow-md border-2 border-btn-border overflow-hidden z-10">
-                              <button onClick={() => zoomOut()} className="p-3 hover:bg-bg text-btn-text"><ZoomOut size={20} /></button>
-                              <div className="flex items-center justify-center px-3 text-sm font-bold text-text/80 min-w-[4rem] select-none">
+                            <div className="absolute bottom-2 right-2 flex bg-btn-bg/90 backdrop-blur rounded-lg shadow-md border-2 border-btn-border overflow-hidden z-10">
+                              <button onClick={() => zoomOut()} className="p-1.5 hover:bg-bg text-btn-text"><ZoomOut size={14} /></button>
+                              <div className="flex items-center justify-center px-2 text-xs font-bold text-text/80 min-w-[3rem] select-none">
                                 {Math.round(scale * 100)}%
                               </div>
-                              <button onClick={() => zoomIn()} className="p-3 hover:bg-bg text-btn-text"><ZoomIn size={20} /></button>
+                              <button onClick={() => zoomIn()} className="p-1.5 hover:bg-bg text-btn-text"><ZoomIn size={14} /></button>
                               <div className="w-px bg-border"></div>
-                              <button onClick={() => resetTransform()} className="p-3 hover:bg-bg text-btn-text"><Maximize size={20} /></button>
+                              <button onClick={() => resetTransform()} className="p-1.5 hover:bg-bg text-btn-text"><Maximize size={14} /></button>
                             </div>
                           </>
                         )}
@@ -1418,7 +1609,7 @@ export default function App() {
                     </button>
                   </DraggableToolbar>
                   <div className="flex-1 w-full relative flex items-center justify-center bg-btn-bg/50 rounded-xl border-2 border-accent/20 overflow-hidden">
-                    <div className="absolute top-1/2 -translate-y-1/2 right-4 flex flex-col bg-btn-bg/90 backdrop-blur rounded-xl shadow-md border-2 border-btn-border overflow-hidden z-20">
+                    <div className="absolute top-1/2 -translate-y-1/2 right-4 flex flex-col bg-btn-bg/90 backdrop-blur rounded-lg shadow-md border-2 border-btn-border overflow-hidden z-20">
                       <button 
                         onClick={() => { 
                           if (previousImage) {
@@ -1428,8 +1619,8 @@ export default function App() {
                           }
                         }} 
                         disabled={!previousImage}
-                        className="flex items-center justify-center p-3 hover:bg-bg text-btn-text hover:text-accent disabled:opacity-50 disabled:cursor-not-allowed" title="Aplicar cambios">
-                        <Check size={20} />
+                        className="flex items-center justify-center p-1.5 hover:bg-bg text-btn-text hover:text-accent disabled:opacity-50 disabled:cursor-not-allowed" title="Aplicar cambios">
+                        <Check size={14} />
                       </button>
                       <div className="h-px w-full bg-border"></div>
                       <button 
@@ -1441,15 +1632,15 @@ export default function App() {
                           }
                         }} 
                         disabled={!previousImage}
-                        className="flex items-center justify-center p-3 hover:bg-bg text-btn-text hover:text-accent disabled:opacity-50 disabled:cursor-not-allowed" title="Cancelar cambios">
-                        <X size={20} />
+                        className="flex items-center justify-center p-1.5 hover:bg-bg text-btn-text hover:text-accent disabled:opacity-50 disabled:cursor-not-allowed" title="Cancelar cambios">
+                        <X size={14} />
                       </button>
                       <div className="h-px w-full bg-border"></div>
                       <button 
                         onClick={handleUndo} 
                         disabled={history.length <= 1 && !previousImage}
-                        className="flex items-center justify-center p-3 hover:bg-bg text-btn-text disabled:opacity-50 disabled:cursor-not-allowed" title="Deshacer cambio">
-                        <Undo2 size={20} />
+                        className="flex items-center justify-center p-1.5 hover:bg-bg text-btn-text disabled:opacity-50 disabled:cursor-not-allowed" title="Deshacer cambio">
+                        <Undo2 size={14} />
                       </button>
                     </div>
                     <TransformWrapper
@@ -1469,14 +1660,14 @@ export default function App() {
                               referrerPolicy="no-referrer" 
                             />
                           </TransformComponent>
-                          <div className="absolute bottom-2 right-2 flex bg-btn-bg/90 backdrop-blur rounded-xl shadow-md border-2 border-btn-border overflow-hidden z-10">
-                            <button onClick={() => zoomOut()} className="p-3 hover:bg-bg text-btn-text"><ZoomOut size={20} /></button>
-                            <div className="flex items-center justify-center px-3 text-sm font-bold text-text/80 min-w-[4rem] select-none">
+                          <div className="absolute bottom-2 right-2 flex bg-btn-bg/90 backdrop-blur rounded-lg shadow-md border-2 border-btn-border overflow-hidden z-10">
+                            <button onClick={() => zoomOut()} className="p-1.5 hover:bg-bg text-btn-text"><ZoomOut size={14} /></button>
+                            <div className="flex items-center justify-center px-2 text-xs font-bold text-text/80 min-w-[3rem] select-none">
                               {Math.round(scale * 100)}%
                             </div>
-                            <button onClick={() => zoomIn()} className="p-3 hover:bg-bg text-btn-text"><ZoomIn size={20} /></button>
+                            <button onClick={() => zoomIn()} className="p-1.5 hover:bg-bg text-btn-text"><ZoomIn size={14} /></button>
                             <div className="w-px bg-border"></div>
-                            <button onClick={() => resetTransform()} className="p-3 hover:bg-bg text-btn-text"><Maximize size={20} /></button>
+                            <button onClick={() => resetTransform()} className="p-1.5 hover:bg-bg text-btn-text"><Maximize size={14} /></button>
                           </div>
                         </>
                       )}

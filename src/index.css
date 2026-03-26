@@ -56,11 +56,57 @@
   --theme-blob-3: transparent;
 }
 
+[data-theme="black"] {
+  --theme-bg-top: #000000;
+  --theme-bg-bottom: #0a0a0a;
+  --theme-bg: #050505;
+  --theme-panel: #111111;
+  --theme-text: #ffffff;
+  --theme-border: #ffffff;
+  --theme-btn-bg: #000000;
+  --theme-btn-text: #ffffff;
+  --theme-btn-border: #ffffff;
+  --theme-accent: #ffffff;
+}
+
+[data-theme="vibrante"] {
+  --theme-bg-top: #0f0c29;
+  --theme-bg-bottom: #24243e;
+  --theme-bg: #1a1a2e;
+  --theme-panel: rgba(20, 20, 40, 0.8);
+  --theme-text: #ffffff;
+  --theme-border: #00f2fe;
+  --theme-btn-bg: rgba(0, 0, 0, 0.5);
+  --theme-btn-text: #ffffff;
+  --theme-btn-border: #ff0844;
+  --theme-accent: #ff0844;
+  --theme-blob-1: #00f2fe;
+  --theme-blob-2: #8a2be2;
+  --theme-blob-3: #ff0844;
+}
+
+[data-theme="minimalista"] {
+  --theme-bg-top: #ffffff;
+  --theme-bg-bottom: #f5f5f5;
+  --theme-bg: #ffffff;
+  --theme-panel: #ffffff;
+  --theme-text: #000000;
+  --theme-border: #000000;
+  --theme-btn-bg: #ffffff;
+  --theme-btn-text: #000000;
+  --theme-btn-border: #000000;
+  --theme-accent: #000000;
+}
+
+body {
+  overflow-x: hidden;
+}
+
 /* Global transitions for smooth theme switching */
 * {
   transition-property: background-color, border-color, color, fill, stroke, box-shadow, border-radius;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 500ms;
+  transition-duration: 150ms;
 }
 
 @layer utilities {
@@ -90,10 +136,10 @@
 @keyframes run-crazy {
   0% { transform: translateX(0) scaleX(1) rotate(0deg); }
   5% { transform: translateX(0) scaleX(1) rotate(-15deg); }
-  20% { transform: translateX(-500px) scaleX(1) rotate(-15deg); }
-  21% { transform: translateX(-500px) scaleX(-1) rotate(-15deg); }
-  50% { transform: translateX(500px) scaleX(-1) rotate(-15deg); }
-  51% { transform: translateX(500px) scaleX(1) rotate(-15deg); }
+  20% { transform: translateX(-100vw) scaleX(1) rotate(-15deg); }
+  21% { transform: translateX(-100vw) scaleX(-1) rotate(-15deg); }
+  50% { transform: translateX(100vw) scaleX(-1) rotate(-15deg); }
+  51% { transform: translateX(100vw) scaleX(1) rotate(-15deg); }
   80% { transform: translateX(-100px) scaleX(1) rotate(-15deg); }
   90% { transform: translateX(0) scaleX(1) rotate(10deg); }
   100% { transform: translateX(0) scaleX(1) rotate(0deg); }
@@ -150,11 +196,7 @@
 }
 
 .logo-text, .logo-subtitle {
-  color: #111111 !important;
-}
-[data-theme="minimalist-dark"] .logo-text,
-[data-theme="minimalist-dark"] .logo-subtitle {
-  color: var(--theme-text) !important;
+  color: #ffffff !important;
 }
 .logo-subtitle {
   opacity: 0.7;
